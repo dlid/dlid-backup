@@ -1,21 +1,8 @@
 # dlid-backup
 Backup scripts to dump database, zip and upload to a firestore
 
-
-## Collector
-
-A collector is used to gather data/files and put it inside a zip archive
-
-## Target
-
-A Target is where the Collected zip file should be stored
-
-### Firebase target
-
-### Firebase key
+## Firebase key
 Download from [Firebase console](https://console.firebase.google.com/project/dlid-backup/settings/serviceaccounts/adminsdk)
-
------------------------------------
 
 ## db.js
 

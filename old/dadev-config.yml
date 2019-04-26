@@ -1,0 +1,34 @@
+# Built in variables
+# - database (mysql) the database name
+# - hostname (global) the hostname of the machine running the script
+
+# Global options. These can be overridden per job
+- mysql:
+  ignore: ['mysql','performance_schema','sys', 'information_schema'] # Ignore these databases. Can't use with "include"
+  include: [] # Include ONLY these databases. Can't use with "ignore"
+
+# First job - montly backup
+- job: mysql-monthly
+   type: mysql
+   $date: moment(YYYY-MM-DD)                     # Defining variable $date. In this case a moment formated date
+   mysql.dumpFilename: {date}_{database}.sql   # {database} variable is built into the 'mysql' type
+   keep: 12                                     # Keep five backups
+   destination: {hostname}/mysql/monthly       # Folder in Firebase. {hostname} is a built in variable
+   archiveName: {date}_mysql.zip               # Everything is packed into an archive. This is its filename
+
+# Second job - weekly backup
+- job: mysql-weekly
+   type: mysql
+   $date: moment(YYYY[W]W)                     # Date containing the ISO week
+   mysql.dumpFilename: {date}_{database}.sql   # Dump filename with date and database name
+   keep: 10                                    # Keep ten backups
+   destination: {hostname}/mysql/weekly        # Folder in Firebase. {hostname} is a built in variable
+   archiveName: {date}_mysql.zip               # Everything is packed into an archive. This is its filename
+
+- job: mysql-weekdaily
+   type: mysql
+   $date: moment(ddd)                          # Date containing the name of the week day
+   mysql.dumpFilename: {date}_{database}.sql   # Dump filename with date and database name
+   keep: 10                                    # Keep ten backups
+   destination: {hostname}/mysql/weekly        # Folder in Firebase. {hostname} is a built in variable
+   archiveName: {date}_mysql.zip               # Everything is packed into an archive. This is its filename
