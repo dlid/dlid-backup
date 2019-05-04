@@ -1,1 +1,2 @@
-export * from './Collector';
+export * from './Configurable.type';
+ 
