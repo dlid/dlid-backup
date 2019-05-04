@@ -7,6 +7,7 @@ Backup scripts to dump database, zip and upload to a firestore
 
 ```
 dlid-backup 
+ ACTION
  -s:COLLECTOR_TYPE 
  [-s.COLLECTOR_PROPERTY=value]...
  -t:TARGET_TYPE 
@@ -14,10 +15,12 @@ dlid-backup
  -o ZIP_FILENAME.zip
 ```
 
+- Action: run, explain
 
 ```
 
 dlid-backup
+ run
  -s:mysql                        # We want to make a MySQL backup
  -s.host=localhost               # from a local server
  -s.include=wp_*                 # of all databases starting with wp_*

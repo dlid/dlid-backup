@@ -50,11 +50,39 @@ class DlidBackup {
                 
         }
 
+        help() {
+                console.log(`
+dlid-backup [run|explain]
+ -s:<type> --source:<type>               Pick a source to make a backup of (mysql)
+ -s.<option>=val --source.<option>=val   Set an option for the source
+ -t:<type> --target:<type>               Pick a target where to save the backup
+ -t.<option>=val --target.<option>=val   Set an option for the target
+ -o=filename.zip                         The filename of the resulting zip archive
+ 
+ dlid-backup -s   To run a guide to create source parameters
+ dlid-backup -t   To run a guide to setup target parameters
+ dlid-backup -o   To show available macros for output filename
+ 
+                `);
+        }
+
         parseArguments() {
 
                 const argparser = new ConfigurableArgumentParser();
 
-                let source = argparser.extractArguments('s', 'source', process.argv.slice(2),  this.configurables, CollectorBase);
+                let args = process.argv.slice(2);
+
+                if (args.length === 0) {
+                        this.help();
+                        return;
+                }
+
+                if (args[0] !== 'explain' && args[0] !== 'run' && args[0] !== 'save') {
+                        throw new Error('First parameter must be ACTION (run, explain or dry-run)')
+                }
+
+
+                let source = argparser.extractArguments('s', 'source', args,  this.configurables, CollectorBase);
 
                 if (!source.collectorName) {
                         throw new Error(`Source is required`);
