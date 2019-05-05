@@ -3,7 +3,10 @@ export interface Configurable {
     getOptions(): ConfigurableSetting[];
     
     explain(options: any): string[];
+
 }
+
+
 
 
 export interface ConfigurableSetting {
@@ -12,6 +15,7 @@ export interface ConfigurableSetting {
     defaultValue?: any;
     isRequired?: boolean;
     description: string;
+    multi?: boolean;
 
     /**
      * Used for the guide to ask the user for this value

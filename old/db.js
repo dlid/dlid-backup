@@ -76,6 +76,12 @@ function linesplit(string) {
     return string.split(character);
 }
 
+function testShouldDumpDatabase(dbName: string): boolean {
+
+    
+
+}
+
 function getDatabases() {
     return new Promise((resolve, reject) => {
         exec(cmd(`mysql`, `-e "SHOW DATABASES" -N`), (err, stdout, stderr) => {

@@ -15,6 +15,16 @@ dlid-backup
  -o ZIP_FILENAME.zip
 ```
 
+
+dlid-backup [action] [options]
+
+Actions:
+ run                                   Run the job
+ explain                               Explain the job
+ -s                                    Start a guide for the source settings
+ 
+
+
 - Action: run, explain
 
 ```

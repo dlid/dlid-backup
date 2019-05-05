@@ -1,11 +1,23 @@
-import { FolderCollector, MySqlCollector }  from "./src/collectors";
+import { GlobCollector, MySqlCollector }  from "./src/collectors";
 import { FileSystemTarget, FireStoreTarget } from './src/targets';
 import { Configurable, ConfigurableSetting, ConfigurableSettingType } from "./src/types";
 import { ConfigurableArgumentParser } from "./src/configuration/ConfigurableArgumentParser";
 import { CollectorBase } from "./src/types/CollectorBase.type";
 import { TargetBase } from "./src/types/TargetBase.type";
+import { Archive } from "./src/archive/Archive";
 const fs = require('fs');
 const path = require('path');
+
+
+var globby = require('globby');
+
+(async () => {
+        const paths = await globby(['../*']);
+     
+        console.log("x", paths);
+        //=> ['unicorn', 'rainbow']
+    })();
+
 
 
 interface Configuration {
@@ -66,64 +78,73 @@ dlid-backup [run|explain]
                 `);
         }
 
-        parseArguments() {
+        parseArguments(): Promise<{
+                action: '' | 'run' | 'explain' | 'save',
+                source: Configurable;
+                sourceOptions: any;
+                target: Configurable;
+                targetOptions: any
+        }> {
 
-                const argparser = new ConfigurableArgumentParser();
+                return new Promise((resolve, reject) => {
+                        const argparser = new ConfigurableArgumentParser();
+                        let args = process.argv.slice(2);
+                        let action;
+                        if (args.length === 0) {
+                                this.help();
+                                return;
+                        }
 
-                let args = process.argv.slice(2);
-
-                if (args.length === 0) {
-                        this.help();
-                        return;
-                }
-
-                if (args[0] !== 'explain' && args[0] !== 'run' && args[0] !== 'save') {
-                        throw new Error('First parameter must be ACTION (run, explain or dry-run)')
-                }
-
-
-                let source = argparser.extractArguments('s', 'source', args,  this.configurables, CollectorBase);
-
-                if (!source.collectorName) {
-                        throw new Error(`Source is required`);
-                }
-
-                if (!source.configExists) {
-                        throw new Error(`Source type '${source.collectorName}' was not found`);
-                }
-
-                let target = argparser.extractArguments('t', 'target', source.remainingArguments,  this.configurables, TargetBase);
-                if (!target.collectorName) {
-                        throw new Error(`Target is required`);
-                }
-                if (!target.configExists) {
-                        throw new Error(`Target type '${target.collectorName}' was not found`);
-                }
-
-                console.log("source", source);
-                console.log("target", target);
+                        if (args[0] !== 'explain' && args[0] !== 'run' && args[0] !== 'save') {
+                                throw new Error('First parameter must be ACTION (run, explain or dry-run)')
+                        }
+                        action = args[0];
 
 
-                const collector = this.configurables.find(cfg => cfg.name === source.collectorName);
-                const targetCollector = this.configurables.find(cfg => cfg.name === target.collectorName);
+                        let source = argparser.extractArguments('s', 'source', args,  this.configurables, CollectorBase);
 
-                let sourceSettings = this.setupConfigurable( collector, source.settings)
-                let targetSettings = this.setupConfigurable( targetCollector, target.settings)
+                        if (!source.collectorName) {
+                                throw new Error(`Source is required`);
+                        }
 
-                let errors = this.verifyRequiredSettings(collector, sourceSettings);
-                errors.concat(this.verifyRequiredSettings(targetCollector, targetSettings))
+                        if (!source.configExists) {
+                                throw new Error(`Source type '${source.collectorName}' was not found`);
+                        }
 
 
-                if (errors.length > 0) {
-                        console.log(`\n\n\x1b[31m${errors.join('\n')}\x1b[0m\n\n`);
-                        throw new Error(`Configuration error`);
-                }
+                        let target = argparser.extractArguments('t', 'target', source.remainingArguments,  this.configurables, TargetBase);
+                        if (!target.collectorName) {
+                                const targets = this.configurables.filter(c => c instanceof TargetBase).map(c => c.name);
+                                throw new Error(`[error] <em>target</em> is required. Use <code>-t</code> parameter to set target.\n\nAvailable targets: ${targets.join(', ')}`);
+                        }
+                        if (!target.configExists) {
+                                throw new Error(`Target type '${target.collectorName}' was not found`);
+                        }
 
-                console.log(errors);
+                        const collector = this.configurables.find(cfg => cfg.name === source.collectorName);
+                        const targetCollector = this.configurables.find(cfg => cfg.name === target.collectorName);
+                        
+                        let sourceSettings = this.setupConfigurable( collector, source.settings)
+                     
+                        let targetSettings = this.setupConfigurable( targetCollector, target.settings)
 
-                console.log(collector.explain(sourceSettings));
-                console.log(targetCollector.explain(targetSettings));
+                        let errors = this.verifyRequiredSettings(collector, sourceSettings);
+                        errors = errors.concat(this.verifyRequiredSettings(targetCollector, targetSettings))
 
+
+                        if (errors.length > 0) {
+                                throw new Error(`\n\n\x1b[31m${errors.join('\n')}\x1b[0m\n\n`);
+                        }
+
+                        resolve({
+                                action: action,
+                                source: collector,
+                                sourceOptions: sourceSettings,
+                                target: targetCollector,
+                                targetOptions: targetSettings
+                        });
+
+                });
         }
 
         verifyRequiredSettings(cfg: Configurable, settings: any) {
@@ -133,7 +154,11 @@ dlid-backup [run|explain]
                 options.forEach(op => {
                         if (op.isRequired && typeof settings[op.key] === 'undefined') {
                                 const type = cfg instanceof CollectorBase  ? '-s' : '-t';
-                                errors.push(`[${cfg.name}] option '${type}.${op.key}' is required `);
+                                const options = cfg.getOptions();
+                                const desc = `\n <code>${op.key}</code>\t\t${this.typeToSting(op.type)}\t` + options[0].description
+
+
+                                errors.push(`<em>${cfg.name}</em> option <code>${type}.${op.key}</code> is required${desc}\n`);
                         }
                 });
 
@@ -146,16 +171,44 @@ dlid-backup [run|explain]
                 const keys = Object.keys(settings);
                 const result = {};
 
-                keys.forEach(propertyName => {
+                keys.filter(key => key !== '__multi').forEach(propertyName => {
 
                         const property = options.find(option => option.key === propertyName);
+                        let values = [settings[propertyName]];
+                        console.log("?", propertyName);
+                        
+
 
                         if (property) {
-                                const prop = this.parseProperty(cfg.name, propertyName, property, settings[propertyName]);
-                                if (prop.error) {
-                                        throw new Error(prop.error);
+
+                                if (settings['__multi']) {
+                                        if (settings['__multi'][propertyName]) {
+                                                if (property.multi === true) {
+                                                
+                                                        values = settings['__multi'][propertyName];
+                                                } else {
+                                                        const type = cfg instanceof CollectorBase  ? '-s' : '-t';
+                                                        throw new Error(`[error] ${cfg.name} property <code>${type}.${propertyName}</code> can only be specified once`);
+                                                }
+                                        } 
                                 }
-                                result[propertyName] = prop.value;
+
+                                values.forEach(value => {
+                                        const prop = this.parseProperty(cfg.name, propertyName, property, value);
+                                        if (prop.error) {
+                                                const type = cfg instanceof CollectorBase  ? '-s' : '-t';
+                                                throw new Error(`[error] ${cfg.name}: <code>${type}.${propertyName}</code> - ` + prop.error);
+                                        }
+                                        if (property.multi === true) {
+                                                if(!result[propertyName]) {
+                                                        result[propertyName] = [];
+                                                }
+                                                result[propertyName].push(prop.value);
+                                        } else {
+                                                result[propertyName] = prop.value;
+                                        }
+                                })
+                                
                         } else {
                                 throw new Error("unknown property " + propertyName);
                         }
@@ -169,6 +222,8 @@ dlid-backup [run|explain]
                                 }
                         }
                 })
+
+                console.warn("AHA", result);
 
                 return result;
         }
@@ -199,7 +254,6 @@ dlid-backup [run|explain]
                 switch(prop.type) {
                         case ConfigurableSettingType.String:
                                 parsedValue = this.parseAsString(originalValue);
-                                
                         break;
                         case ConfigurableSettingType.Int:
                                 parsedValue = this.parseAsInt(originalValue);
@@ -254,12 +308,12 @@ dlid-backup [run|explain]
                                         break;
                                 }
                         } catch(err) {
-                                console.error(err)
+                                
                         }
                 }
 
                 if (!value) {
-                        error = 'Could not find file ' + val;
+                        error = 'Could not find file <em>' + val + '</em>';
                 }
 
                 return { error, value };
@@ -282,12 +336,12 @@ dlid-backup [run|explain]
                         value = tries[i];
                         break;
                         } catch(err) {
-                                console.error(err)
+                               
                         }
                 }
 
                 if (!value) {
-                        error = 'Could not find folder ' + val;
+                        error = 'Could not find folder <em>' + val + '</em>';
                 }
 
                 return { error, value };
@@ -327,12 +381,66 @@ dlid-backup [run|explain]
         
 }
 
-var bak = new DlidBackup([new FolderCollector(), new MySqlCollector(), new FileSystemTarget()]);
+var bak = new DlidBackup([new GlobCollector(), new MySqlCollector(), new FileSystemTarget()]);
+try {
 
-bak.parseArguments()
+bak.parseArguments().then(f => {
+        
+        // if (f.action === 'save') {
+        //         var data = "New File Contents";
+
+        //         fs.writeFile("databases.json", JSON.stringify({type: f.source.name, options: f.sourceOptions}, null, 2), (err) => {
+        //         if (err) console.log(err);
+        //         console.log("Successfully Written to File.");
+        //         });
+        // }
+
+        // throw new Error(f.action);
+
+
+        var tmp = require('tmp');
+        var tempFilename = tmp.tmpNameSync() + '.zip';
+        var outputFile = new Archive(tempFilename);
+
+        (<any>f.source as CollectorBase).collect(outputFile, f.sourceOptions).then(f => {
+                outputFile.save().then(f => {
+                        console.log(`${tempFilename} created. Send using Target`);
+                })
+        });        
+
+}).catch(err => {
+        console.log(format(err.message));
+})
 // .then()
 // .catch(err => err)
 
 
+} catch (e) {
+        console.log(format(e.message));
+}
+
+function format(val: string) {
+
+        const tags = {
+                em: '\x1b[35m',
+                code: '\x1b[33m'
+        };
+
+        let keys = Object.keys(tags);
 
 
+        val = val.replace('[error]', '\x1b[41m\x1b[37m error \x1b[0m');
+
+        keys.forEach(tagName => {
+                let re = new RegExp(`<${tagName}>(.*?)<\/${tagName}>`);
+                let arrMatch;
+                while (arrMatch = re.exec(val)) {
+                        val = val.replace( arrMatch[0], `${tags[tagName]}${arrMatch[1]}\x1b[0m`);
+                }
+        })
+
+        return val;
+
+
+
+}

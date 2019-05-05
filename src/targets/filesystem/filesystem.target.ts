@@ -3,6 +3,13 @@ import { TargetBase } from "../../types/TargetBase.type";
 
 export class FileSystemTarget extends TargetBase implements Configurable {
     name: string = 'filesystem';
+
+    run(): Promise<any> {
+      return new Promise((resolve, reject) => {
+          resolve();
+      });
+    }
+
     explain(options: any): string[] {
       return [
         `Targeting local file system`,
@@ -13,9 +20,9 @@ export class FileSystemTarget extends TargetBase implements Configurable {
         return [
             {
                 key: 'folder',
-                type: ConfigurableSettingType.FilePath,
+                type: ConfigurableSettingType.FolderPath,
                 isRequired: true,
-                description: 'Path to Mysql executable (Windows only)'
+                description: 'Directory where to save backups'
             }
         ];
     }

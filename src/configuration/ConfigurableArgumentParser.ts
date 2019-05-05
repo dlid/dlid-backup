@@ -41,7 +41,17 @@ export class ConfigurableArgumentParser {
             configExists = true;
           }
         } else {
-          settings[name] = m[4];
+          if (settings[name]) {
+            if (!settings['__multi']) {
+              settings['__multi'] = {};
+            }
+            if(!settings['__multi'][name]) {
+              settings['__multi'][name] = [settings[name]];
+            }
+            settings['__multi'][name].push(m[4]);
+          } else {
+            settings[name] = m[4];
+          }
         }
       } else {
         remainingArguments.push(f);
