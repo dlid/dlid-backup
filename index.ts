@@ -12,7 +12,7 @@ const path = require('path');
 var globby = require('globby');
 
 (async () => {
-        const paths = await globby(['../*']);
+        const paths = await globby(['../*.zip']);
      
         console.log("x", paths);
         //=> ['unicorn', 'rainbow']

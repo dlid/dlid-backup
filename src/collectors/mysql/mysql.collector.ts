@@ -1,14 +1,14 @@
 import { Configurable, ConfigurableSetting, ConfigurableSettingType } from "../../types/Configurable.type";
 import { CollectorBase } from "../../types/CollectorBase.type";
 import { Archive } from "../../archive/Archive";
-import { pathMatch } from "tough-cookie";
+// import { pathMatch } from "tough-cookie";
 const os = require('os');
 const path = require('path');
 const { exec, spawn } = require('child_process');
 
 export class MySqlCollector extends CollectorBase implements Configurable {
     name: string = 'mysql';
-
+ 
     private options;
 
     async collect(archive: Archive, options: any): Promise<any> {
