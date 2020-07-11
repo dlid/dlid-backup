@@ -2,6 +2,7 @@ import { Configurable, ConfigurableSetting, ConfigurableSettingType } from "../.
 import { TargetBase } from "../../types/TargetBase.type";
 
 export class FileSystemTarget extends TargetBase implements Configurable {
+    description: string = 'Save backup to filesystem';
     name: string = 'filesystem';
 
     run(): Promise<any> {

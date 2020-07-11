@@ -3,8 +3,10 @@ import { CollectorBase } from "../../types/CollectorBase.type";
 import { Archive } from "../../archive/Archive";
 
 export class GlobCollector extends CollectorBase implements Configurable {
+    description: string = 'Backup local files and folders';
     name: string = 'globs';
     options;
+
     explain(options: any): string[] {
         return [];
     }

@@ -18,6 +18,11 @@ export interface ConfigurableSetting {
     multi?: boolean;
 
     /**
+     * Never log this value
+     */
+    isSensitive?: boolean;
+
+    /**
      * Used for the guide to ask the user for this value
      */
     prompt?: string;

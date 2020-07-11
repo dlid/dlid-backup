@@ -1,3 +1,3 @@
-export class TargetBase {
-
+export abstract class TargetBase {
+    abstract description: string;
 } 

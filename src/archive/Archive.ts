@@ -1,4 +1,4 @@
-var fs = require('fs');
+import * as fs from 'fs';
 var path = require('path');
 import { create } from 'archiver';
 import { WriteStream } from 'tty';
@@ -6,21 +6,22 @@ import { WriteStream } from 'tty';
 export class Archive {
 
   zip: any;
-  output: WriteStream;
+  output: fs.WriteStream;
 
   closed: boolean = false;
   ended: boolean = false;
   finished: boolean = false;
   
-  constructor(filename: string) {
+  constructor(private filename: string) {
     const self = this;
-    this.output = fs.createWriteStream(filename);
+    console.log(this.filename);
+    this.output = fs.createWriteStream(this.filename);
     this.zip = create('zip', {
       zlib: { level: 9 }
     });
 
     this.output.on('close', function() {
-      console.log(self.bytesToSize(self.zip.pointer()) + ' total bytes');
+      // console.log(self.bytesToSize(self.zip.pointer()) + ' total bytes');
       self.closed = true;
     });
 
@@ -76,10 +77,27 @@ export class Archive {
     return new Promise((resolve, reject) => {
       // this.zip.writeZip(filename);
       this.zip.finalize();
-
       const inter = setInterval(() => {
         if (self.closed) {
           clearInterval(inter);
+          resolve();
+        }
+      }, 500);
+    });
+  }
+
+  async discard() {
+    const self = this;
+    return new Promise((resolve, reject) => {
+      this.zip.finalize();
+      const inter = setInterval(() => {
+        if (self.closed) {
+          clearInterval(inter);
+          if (fs.existsSync(this.filename)) {
+            try {
+              fs.unlinkSync(this.filename);
+            } catch(e) {}
+          }
           resolve();
         }
       }, 500);
