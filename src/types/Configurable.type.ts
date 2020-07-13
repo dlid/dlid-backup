@@ -16,6 +16,8 @@ export interface ConfigurableSetting {
     isRequired?: boolean;
     description: string;
     multi?: boolean;
+    examples?: { [example: string]: string };
+    allowZipTargetFolder?: boolean;
 
     /**
      * Never log this value
@@ -32,6 +34,7 @@ export enum ConfigurableSettingType {
     String,
     Int,
     FolderPath,
+    FolderPathArray,
     FilePath,
     StringArray,
     IntArray,

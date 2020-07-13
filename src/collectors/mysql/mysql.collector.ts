@@ -4,6 +4,7 @@ import { Archive } from "../../archive/Archive";
 import { CollectorError, ParameterException } from "../../exceptions/collector.error";
 import {logger, Logger} from './../../util/logger'
 import fs = require("fs");
+import { CollectorArguments } from "../../types/CollectorArguments.interface";
 
 
 // import { pathMatch } from "tough-cookie";
@@ -24,10 +25,10 @@ export class MySqlCollector extends CollectorBase implements Configurable {
         this.log = logger.child('MySQL Collector');
     }
 
-    async collect(archive: Archive, options: any): Promise<any> {
+    async collect(args: CollectorArguments): Promise<any> {
         this.log.debug('Entering MySQL Collector');
         return new Promise<boolean>(async (resolve, reject) => {
-            this.options = options;
+            this.options = args.options;
             let databaseList: string[];
             let databasesBackedUp = 0;
 
@@ -48,10 +49,12 @@ export class MySqlCollector extends CollectorBase implements Configurable {
                         if (this.testShouldDumpDatabase(databaseList[i])) {
                             const dump = await this.dumpDatabase(databaseList[i]);
                             const dbFilename = `${databaseList[i]}.sql`;
-                            archive.addString(dbFilename, dump);
+                            args.archive.addString(dbFilename, dump);
                             this.log.info(`Collected ${dbFilename} MySQL dump`);
+                            args.readmeLines.push(`Added MySQL Dump of "${dbFilename}"`);
                             databasesBackedUp += 1;
                         } else {
+                            args.readmeLines.push(`Skipping database "${databaseList[i]}"`);
                             this.log.debug(`Skipping database ${databaseList[i]}`);
                         }
                     } catch (e) {

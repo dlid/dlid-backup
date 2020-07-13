@@ -5,12 +5,21 @@ import * as tmp from 'tmp';
 import * as fs from 'fs';
 import { assert } from 'console';
 import { propertyParser } from './propertyParser.class';
+import { ConfigurableSetting, ConfigurableSettingType } from '../types';
 
 const expect = chai.expect;
 describe('parseAsStringArray', () => {
 
+  var x: ConfigurableSetting = {
+    description: '',
+    key: 'x',
+    type: ConfigurableSettingType.StringArray,
+    multi: true
+  };
+
+
   it('Simple comma separated string' , async () => {
-    var result = propertyParser.parseAsStringArray(`hej,kaka`);
+    var result = propertyParser.parseAsStringArray(`hej,kaka`, x);
     expect(result.value).not.to.be.undefined;
     expect(result.value.length).to.equal(2);
     expect(result.value[0]).to.equal('hej');
@@ -19,7 +28,7 @@ describe('parseAsStringArray', () => {
   });
 
   it('Comma separated string with random quotes' , async () => {
-    var result = propertyParser.parseAsStringArray(`he"j,k"aka`);
+    var result = propertyParser.parseAsStringArray(`he"j,k"aka`, x);
 
     expect(result.value).not.to.be.undefined;
     expect(result.value.length).to.equal(2);

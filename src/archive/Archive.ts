@@ -2,6 +2,7 @@ import * as fs from 'fs';
 var path = require('path');
 import { create } from 'archiver';
 import { WriteStream } from 'tty';
+import { logger, Logger } from '../util';
 
 export class Archive {
 
@@ -11,17 +12,24 @@ export class Archive {
   closed: boolean = false;
   ended: boolean = false;
   finished: boolean = false;
+
+  log: Logger;
   
   constructor(private filename: string) {
+    this.log = logger.child(this.constructor.name);
     const self = this;
-    console.log(this.filename);
+    this.log.debug(`Initializing archive ${this.filename}`);
     this.output = fs.createWriteStream(this.filename);
     this.zip = create('zip', {
       zlib: { level: 9 }
     });
 
     this.output.on('close', function() {
-      // console.log(self.bytesToSize(self.zip.pointer()) + ' total bytes');
+      if (self.discarded) {
+        self.log.debug('Closing empty archive stream');
+      } else {
+        self.log.info('Archive saved (' + self.bytesToSize(self.zip.pointer()) + ')');
+      }
       self.closed = true;
     });
 
@@ -38,6 +46,7 @@ export class Archive {
         console.log("WARNING", err);
         // log warning
       } else {
+        self.log.trace(`Archive error`, err);
         // throw error
         throw err;
       }
@@ -55,12 +64,15 @@ export class Archive {
     this.zip.append(fileContent, { name: filenameInArchive });
   }
 
-  addLocalFile(localFilePath: string, zipDirectory: string = null) {
-   this.zip.file(localFilePath, { name: path.basename(localFilePath) });
+  addLocalFile(localFilePath: string, zipFilename: string = null) {
+    if (!zipFilename) {
+      zipFilename = path.basename(localFilePath);
+    }
+    this.zip.file(localFilePath, { name: zipFilename });
   }
 
-  addLocalFolder(localFilePath: string, zipDirectory: string = null) {
-    this.zip.directory(localFilePath, 'logs');
+  addLocalFolder(localFilePath: string, targetDirName: string = null) {
+    this.zip.directory(localFilePath, targetDirName);
    // this.zip.addLocalFolder(localFilePath, zipDirectory);
   }
 
@@ -73,9 +85,9 @@ export class Archive {
  };
 
   async save() {
+    this.log.info(`Finalizing ${this.filename}...`);
     const self = this;
     return new Promise((resolve, reject) => {
-      // this.zip.writeZip(filename);
       this.zip.finalize();
       const inter = setInterval(() => {
         if (self.closed) {
@@ -86,7 +98,10 @@ export class Archive {
     });
   }
 
+  private discarded = false;
+
   async discard() {
+    this.discarded = true;
     const self = this;
     return new Promise((resolve, reject) => {
       this.zip.finalize();
@@ -96,8 +111,12 @@ export class Archive {
           if (fs.existsSync(this.filename)) {
             try {
               fs.unlinkSync(this.filename);
-            } catch(e) {}
+              self.log.debug('Temporary file was deleted');
+            } catch(e) {
+              self.log.info(`Error deleting temporary file`, e);
+            }
           }
+          self.log.debug(`Archive file discarded`);
           resolve();
         }
       }, 500);

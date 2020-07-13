@@ -4,9 +4,12 @@
         "target": "ES2018", 
         "outDir": "dist",
         "rootDir": "src",
-        "lib": ["ES2018"] 
-        // "paths": {
+        "lib": ["ES2018"]
+                // "paths": {
         //     "root/*": ["src/*"]
         // } 
-    }
+    },
+    "files": [
+        "./src/index.ts"
+    ]
 }

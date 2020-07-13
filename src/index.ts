@@ -1,14 +1,14 @@
-import { GlobCollector, MySqlCollector }  from "./collectors";
+import { MySqlCollector, FilesystemCollector }  from "./collectors";
 import { FileSystemTarget, FireStoreTarget } from './targets';
 import { DlidBackup } from "./dlid-backup.class";
 import { DlidBackupError } from "./exceptions/collector.error";
 import {logger, LogLevel} from './util/logger'
 import { argv } from "process";
 
-
+ 
 /// Include all the collectors and targets we want to support
 const targetsAndCollectors = [
-    new GlobCollector(),
+    new FilesystemCollector(),
     new MySqlCollector(),
     new FileSystemTarget(),
     new FireStoreTarget()
@@ -16,10 +16,10 @@ const targetsAndCollectors = [
 
 logger.setLogLevel(LogLevel.Info, argv);
 
-var bak = new DlidBackup(targetsAndCollectors, argv);
+var bak = new DlidBackup('%DLID-BACKUP-VERSION%', targetsAndCollectors, argv);
 
 bak.run().then(() => {
-    logger.success(`No errors detected`);
+    logger.success(`Done`);
     // All is well
 }).catch(err => {
     if (err instanceof DlidBackupError) {

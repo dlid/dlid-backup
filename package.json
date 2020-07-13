@@ -9,7 +9,7 @@
   "scripts": {
     "test": "node_modules/.bin/mocha --reporter spec --require ts-node/register src/**/*.test.ts",
     "test:watch": "node_modules/.bin/mocha --watch --watch-extensions ts --reporter spec --require ts-node/register src/**/*.test.ts",
-    "start": "node node_modules/tsc-watch/index.js --watch src/**/*.ts --outDir dist --lib es6"
+    "start": "node node_modules/tsc-watch/index.js --onsuccess \"node ./scripts/updateDistVersionNumber --development\""
   },
   "author": "",
   "license": "ISC",
@@ -17,9 +17,9 @@
     "@google-cloud/storage": "^5.1.1",
     "adm-zip": "^0.4.16",
     "archiver": "^3.1.1",
+    "date-fns": "^2.14.0",
     "firebase": "^7.15.5",
     "globby": "^9.2.0",
-    "moment": "^2.27.0",
     "multer": "^1.4.2",
     "tmp": "^0.1.0"
   },
@@ -30,6 +30,7 @@
     "chai": "^4.2.0",
     "mocha": "^8.0.1",
     "nyc": "^15.1.0",
+    "replace-in-file": "^6.1.0",
     "ts-node": "^8.10.2",
     "tsc-watch": "^1.1.39",
     "typescript": "^3.9.6"

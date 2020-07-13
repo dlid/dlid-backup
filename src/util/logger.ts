@@ -5,8 +5,8 @@ export enum LogLevel {
     Trace = 1,
     Debug = 2,
     Info = 3,
-    Error = 4,
-
+    Warning = 4,
+    Error = 5,
 }
 
 export class Logger {
@@ -16,7 +16,7 @@ export class Logger {
     constructor(private root: Logger = null, private name: string = null) {}
 
     private trySetLogLevelFromParameters(args: string[]): boolean {
-        const levels = ['verbose', 'trace', 'debug', 'info', 'error']; // Must match the enum order
+        const levels = ['verbose', 'trace', 'debug', 'info', 'warn', 'error']; // Must match the enum order
         const levelsFromParams: LogLevel[] = [];
         args.forEach(arg => {
             const m = arg.match(`^-l(og|)=(${levels.join('|')})`)
@@ -43,6 +43,7 @@ export class Logger {
             case 'info': return LogLevel.Info;
             case 'debug': return LogLevel.Debug;
             case 'trace': return LogLevel.Trace;
+            case 'warn': return LogLevel.Warning;
         }
         return LogLevel.Verbose;
     }
@@ -52,16 +53,19 @@ export class Logger {
 
         let levelString = '';
         let levelColor = '';
+        let textColor = '';
         switch(level) {
             case  LogLevel.Debug: levelString = 'DEBUG'; levelColor = ''; break;
             case  LogLevel.Info: levelString = 'INFO'; levelColor = '\x1b[1m\x1b[37m'; break;
             case  LogLevel.Error: levelString = 'ERROR'; levelColor = '\x1b[2m'; break;
+            case  LogLevel.Warning: levelString = 'WARN'; levelColor = '\x1b[1m\x1b[33m'; textColor = levelColor; break;
             case  LogLevel.Trace: levelString = 'TRACE'; levelColor = '\x1b[2m'; break;
         }
 
         if (customLevelColor) {
             levelColor = customLevelColor;
         }
+
 
         levelString = levelString.padEnd(5, ' ');
         let name = '';
@@ -70,7 +74,7 @@ export class Logger {
         }
 
         const timestamp = new Date().toISOString();
-        return `[${levelColor}${levelString}\x1b[0m] ${process.pid} ${timestamp} ${name}${param.join(', ')}`;
+        return `[${levelColor}${levelString}\x1b[0m] ${process.pid} ${timestamp} ${name}${textColor}${param.join(', ')}\x1b[0m`;
     }
 
     private logLevelToString(level: LogLevel): string {
@@ -79,6 +83,7 @@ export class Logger {
             case  LogLevel.Info: return 'INFO'; 
             case  LogLevel.Error: return 'ERROR';
             case  LogLevel.Trace: return 'TRACE';
+            case  LogLevel.Warning: return 'WARN';
         }
         return 'VERBOSE';
     }
@@ -113,6 +118,12 @@ export class Logger {
     info(...param: any[]) {
         if (LogLevel.Info >= this.getLogLevel()) {
             console.info( this.createLogMessage(LogLevel.Info, param));
+        }
+    }
+
+    warn(...param: any[]) {
+        if (LogLevel.Warning >= this.getLogLevel()) {
+            console.info( this.createLogMessage(LogLevel.Warning, param));
         }
     }
 

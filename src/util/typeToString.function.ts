@@ -14,6 +14,8 @@ export function typeToString(type: ConfigurableSettingType) {
         return 'filepath';
         case ConfigurableSettingType.FolderPath:
         return 'folderpath';
+        case ConfigurableSettingType.FolderPathArray:
+        return 'folderpath[]';
         default:
         return 'unknown';
     }

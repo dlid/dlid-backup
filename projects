@@ -1,0 +1,34 @@
+C:\Users\david\AppData\Local\Temp\tmp-18836aEejZzo3O2qb.zip
+ZIP 30 into glob_0
+glob_0/B2CGraphClient2/B2CGraphClient.csproj
+glob_0/B2CGraphClient/B2CGraphClient.csproj
+glob_0/DbSyncXml/DbSyncXml.csproj
+glob_0/DbSyncXmlTests/DbSyncXmlTests.csproj
+glob_0/Mibp.Backend.Data.Tests/Mibp.Backend.Data.Tests.csproj
+glob_0/Mibp.Migration/Mibp.Migration.csproj
+glob_0/Mibp.B2CGraphClient/B2CGraphClient.Core.Tests/Mibp.B2CGraphClient.Core.Tests.csproj
+glob_0/Mibp.B2CGraphClient/B2CGraphClient.Core/Mibp.B2CGraphClient.Core.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Api/Mibp.Backend.Api.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Business/Mibp.Backend.Business.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Common/Mibp.Backend.Common.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Business.Tests/Mibp.Backend.Business.Tests.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Common.Tests/Mibp.Backend.Common.Tests.csproj
+glob_0/Mibp.Backend/Mibp.Backend.Data/Mibp.Backend.Data.csproj
+glob_0/Mibp.Frontend/Mibp.Frontend.ApiServiceGenerator/Mibp.Frontend.ApiServiceGenerator/Mibp.Frontend.ApiServiceGenerator.csproj
+glob_0/Mibp.Frontend/Mibp.Frontend.ApiServiceGenerator/Mibp.Frontend.ApiServiceGenerator.Tests/Mibp.Frontend.ApiServiceGenerator.Tests.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.AuroraFunction/Mibp.Backend.Functions.AuroraFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.BIDashboardFunction/Mibp.Backend.Functions.BIDashboardFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.BlobFunction/Mibp.Backend.Functions.BlobFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.Common/Mibp.Backend.Functions.Common.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.CustomerFunction/Mibp.Backend.Functions.CustomerFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.DocumotoFunction/Mibp.Backend.Functions.DocumotoFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.EmailFunction/Mibp.Backend.Functions.EmailFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.EquipmentFunction/Mibp.Backend.Functions.EquipmentFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.KitFunction/Mibp.Backend.Functions.KitFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.MigrationFunction/Mibp.Backend.Functions.MigrationFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.NotificationFunction/Mibp.Backend.Functions.NotificationFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.ScopingFunction/Mibp.Backend.Functions.ScopingFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.SearchFunction/Mibp.Backend.Functions.SearchFunction.csproj
+glob_0/Mibp.Backend/Functions/Mibp.Backend.Functions.TimerjobFunction/Mibp.Backend.Functions.TimerjobFunction.csproj
+[[1m[37mINFO [0m] 18836 2020-07-12T15:43:46.632Z No backup data was collected
+[[32mINFO [0m] 18836 2020-07-12T15:43:46.638Z No errors detected

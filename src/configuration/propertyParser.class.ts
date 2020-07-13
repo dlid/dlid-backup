@@ -3,6 +3,7 @@ import fs = require('fs');
 import { Logger, logger } from '../util/logger';
 import { ConfigurableSetting, ConfigurableSettingType } from '../types';
 import { typeToString } from '../util';
+import { extractZipFolderName } from '../util/extractZipFolderName.function';
 
 export class PropertyParser {
     
@@ -16,22 +17,25 @@ export class PropertyParser {
         log = log || logger;
     
         let parsedValue: { value: any, error: string } = null;
-    
+
         switch(prop.type) {
                 case ConfigurableSettingType.String:
-                        parsedValue = this.parseAsString(originalValue);
+                        parsedValue = this.parseAsString(originalValue, prop);
                 break;
                 case ConfigurableSettingType.Int:
                         parsedValue = this.parseAsInt(originalValue);
                 break;
                 case ConfigurableSettingType.StringArray:
-                        parsedValue = this.parseAsStringArray(originalValue);
+                        parsedValue = this.parseAsStringArray(originalValue, prop);
                 break;
                 case ConfigurableSettingType.FilePath:
-                        parsedValue = this.parseAsFilePath(originalValue);
+                        parsedValue = this.parseAsFilePath(originalValue, prop);
                 break;
                 case ConfigurableSettingType.FolderPath:
-                        parsedValue = this.parseAsFolderPath(originalValue);
+                        parsedValue = this.parseAsFolderPath(originalValue, prop);
+                break;
+                case ConfigurableSettingType.FolderPathArray:
+                        parsedValue = this.parseAsFolderPath(originalValue, prop);
                 break;
                 default:
                         parsedValue.error = `${propertyName} Property type '${typeToString(prop.type)}' is not implemented`;
@@ -50,7 +54,7 @@ export class PropertyParser {
         return { value, error };
     }
     
-    parseAsString(val: any, isSensitive?: boolean) {
+    parseAsString(val: any, prop: ConfigurableSetting) {
         let error = '';
         let value = null;
         
@@ -62,7 +66,7 @@ export class PropertyParser {
         return { error, value };
     }  
     
-    parseAsStringArray(val: string): {error: string, value: string[]} {
+    parseAsStringArray(val: string, prop: ConfigurableSetting): {error: string, value: string[]} {
         let error = '';
         let value = null;
         
@@ -79,7 +83,18 @@ export class PropertyParser {
         return { error, value };
     }
 
-    parseAsFolderPath(val: string) {
+    parseAsFolderPathArray(val: string, prop: ConfigurableSetting): {error: string, value: string[]} {
+        
+        let { error, value} = this.parseAsStringArray(val, prop);
+
+        if (!error) {
+            value = value.map(f => this.parseAsFolderPath(f.trim(), prop).value ).filter(f => f);
+        }
+        
+        return { error, value };
+    }
+
+    parseAsFolderPath(val: string, prop: ConfigurableSetting) {
         let error = '';
         let value = null;
     
@@ -87,41 +102,63 @@ export class PropertyParser {
                 value = '';
         }
 
-        let tries = [path.resolve(val)];
-        tries.push( path.join( __dirname, val));
+        var valueToTest = val;
+        let zipFolderName: string = null;
+        if (prop.allowZipTargetFolder) {
+            const t = extractZipFolderName(valueToTest, '');
+            valueToTest = t.value;
+            zipFolderName = t.zipTargetFolder;
+        }
+
+        let tries = [path.resolve(valueToTest)];
+        tries.push( path.join( __dirname, valueToTest));
     
         for( let i=0; i < tries.length; i++) {
-                try {
-                      fs.statSync(tries[i]);
-                    value = tries[i];
-                break;
-                } catch(err) {
-                       
+            try {
+                fs.statSync(tries[i]);
+                value = tries[i];
+                if (zipFolderName) {
+                    value = `@${zipFolderName}(${value})`;
                 }
+                break;
+            } catch(err) {
+                    
+            }
         }
     
         if (!value) {
-            error = 'Could not find folder "' + val + '"';
+            error = 'Could not find folder "' + valueToTest + '"';
         }
     
         return { error, value };
     }
     
-    parseAsFilePath(val: any) {
+    parseAsFilePath(val: any, prop: ConfigurableSetting) {
         let error = '';
         let value = null;
         
         if(typeof val === 'undefined' || val === null) {
             value = '';
         }
+
+        var valueToTest = val;
+        let zipFolderName: string = null;
+        if (prop.allowZipTargetFolder) {
+            const t = extractZipFolderName(valueToTest, '');
+            valueToTest = t.value;
+            zipFolderName = t.zipTargetFolder;
+        }
         
-        let tries = [path.resolve(val)];
-        tries.push( path.join( __dirname, val));
+        let tries = [path.resolve(valueToTest)];
+        tries.push( path.join( __dirname, valueToTest));
         
         for( let i=0; i < tries.length; i++) {
             try {
                 if (fs.existsSync(tries[i])) {
                     value = tries[i];
+                    if (zipFolderName) {
+                        value = `@${zipFolderName}(${value})`;
+                    }
                     break;
                 }
             } catch(err) {
@@ -130,7 +167,7 @@ export class PropertyParser {
         }
         
         if (!value) {
-            error = 'Could not find file <em>' + val + '</em>';
+            error = 'Could not find file <em>' + valueToTest + '</em>';
         }
         
         return { error, value };

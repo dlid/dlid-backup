@@ -46,7 +46,7 @@ export class DlidBackupConfiguration {
                 return;
             }
             
-            const targets = this.configurables.filter(c => c instanceof TargetBase).map(c => c.name);
+            const targets = this.configurables.filter(c => c instanceof CollectorBase).map(c => c.name);
             const collectors = this.configurables.filter(c => c instanceof TargetBase).map(c => c.name);
             
             /**
@@ -62,7 +62,7 @@ export class DlidBackupConfiguration {
                 throw new ParameterException('--source', source.collectorName, `"${source.collectorName}" is not a registered source type (${collectors.join('|')})`)
             }
             
-            const collector = this.configurables.find(cfg => cfg.name === source.collectorName);
+            const collector = this.configurables.find(cfg => cfg.name === source.collectorName && cfg instanceof CollectorBase);
             let sourceSettings = this.findSettings( collector, source.settings)
             
             
@@ -77,7 +77,7 @@ export class DlidBackupConfiguration {
                 throw new ParameterException('--target', target.collectorName, `"${target.collectorName}" is not a registered target type (${targets.join('|')})`)
             }
             
-            const targetConfigurable = this.configurables.find(cfg => cfg.name === target.collectorName);
+            const targetConfigurable = this.configurables.find(cfg => cfg.name === target.collectorName&& cfg instanceof TargetBase);
             const targetSettings = this.findSettings(targetConfigurable, target.settings)
 
             this.action = action;
