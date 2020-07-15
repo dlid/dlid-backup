@@ -4,7 +4,7 @@
   "description": "CLI tool to make a simple backup from a source to a target",
   "main": "dist/bin/index.js",
   "repository": {
-    "type" : "git",
+    "type": "git",
     "url": "https://github.com/dlid/dlid-backup"
   },
   "scripts": {
@@ -19,6 +19,7 @@
     "@google-cloud/storage": "^5.1.1",
     "adm-zip": "^0.4.16",
     "archiver": "^3.1.1",
+    "axios": "^0.19.2",
     "date-fns": "^2.14.0",
     "firebase": "^7.15.5",
     "firebase-admin": "^8.13.0",
@@ -32,6 +33,7 @@
     "@types/mocha": "^7.0.2",
     "@types/node": "^14.0.14",
     "chai": "^4.2.0",
+    "get-folder-size": "^2.0.1",
     "mocha": "^8.0.1",
     "nyc": "^15.1.0",
     "replace-in-file": "^6.1.0",
@@ -40,4 +42,3 @@
     "typescript": "^3.9.6"
   }
 }
-

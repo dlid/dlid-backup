@@ -168,8 +168,6 @@ export class DlidBackupConfiguration {
         });
         log.trace(`${type}.${cfg.name} All options are set`);
         
-        console.warn("AHA", result);
-        
         return result;
         
     }

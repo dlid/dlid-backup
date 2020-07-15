@@ -1,67 +1,80 @@
 # dlid-backup
-Backup scripts to dump database, zip and upload to a firestore
-
-- A Collector is used to gather data to be backed up from the Source
-- A Target is defined to tell where the data should be stored
-- The Output will be a ZIP file stored in the *Target* location
+CLI tool to make a simple backup from a source to a target
 
 ```
 dlid-backup 
- ACTION
+ ACTION = run | help
  -s:COLLECTOR_TYPE 
  [-s.COLLECTOR_PROPERTY=value]...
  -t:TARGET_TYPE 
  [-s.TARGET_PROPERTY=value]...
- -o ZIP_FILENAME.zip
 ```
 
+All files are collected into a ZIP archive. This ZIP file is then sent to the target.
 
-dlid-backup [action] [options]
+# Installation
 
-Actions:
- run                                   Run the job
- explain                               Explain the job
- -s                                    Start a guide for the source settings
- 
+    npm install dlid-backup
 
-
-- Action: run, explain
+## Example - MySQL backup
+The MySQL backup will use mysqldump and will only work for the local server.
 
 ```
-
 dlid-backup
  run
- -s:mysql                        # We want to make a MySQL backup
- -s.host=localhost               # from a local server
- -s.include=wp_*                 # of all databases starting with wp_*
- -t:filesystem                   # Save the backup in the local filesystem
- -t.path=/usr/david/bak          # in this folder
- -o={year}-{month}-{date}-wp.zip # with this filename {these} values are macros
+ -s:mysql                                                # We want to make a MySQL backup
+ -s.host=localhost                                       # from a local server
+ -s.include=wp_*                                         # of all databases starting with wp_*
+ -t:filesystem                                           # Save the backup in the local filesystem
+ -t.folder=/usr/david/bak                                # in this folder
+ -t.filename={date:yyyy'-'MM'-'dd}-{date}-{date}-wp.zip  # with this filename {these} values are macros  (2020-07-15-wp.zip)
+ -t.keep=3                                               # Keep maximum 3 files in the target location that...
+ -t.keep-match=*_wp-zip                                  # ..match this pattern - ending with_wp.zip
 ```
 
 ## Collector
 
-A collector is used to gather data/files and put it inside a zip archive
+A collector is used to gather data/files and put it inside a zip archive. These are the current collectors.
+
+- Filesystem - Zip files using glob patterns or zip an entire folder
+- MySQL - Zip SQL database dumps
 
 ## Target
 
-A Target is where the Collected zip file should be stored
+A Target is where the Collected zip file should be stored. These are the current targets:
+
+- Filesystem
+- Firebase
+
+# Development
+
+```
+# Installation
+npm install
+npm start    # Will watch files and build to dist/ folder
+
+# Run dlid-backup
+node ./     # Will run developmente build (dist/bin/index.js)
+
+# Build npm-package
+npm run build   # Will build into release/ folder
+
+# Tests
+npm test       # Will run tests
+```
+
+
+
+--------------------------------
+
+More documentation and examples will come - this is just the first release
+
+--------------------------------
 
 ### Firebase target
 
 ### Firebase key
 Download from [Firebase console](https://console.firebase.google.com/project/dlid-backup/settings/serviceaccounts/adminsdk)
-
------------------------------------
-
-## db.js
-
-- `--dateformat` moment.js date format. Will be prefix to filenames (zip file and database sql file names)
-- `--p` destination FOLDER In firestore. Use {hostname} for current computer name
-- `--keep` After upload only this many files in firestore are saved
-- `-z` Zip file name. dateformat will be prepended
-
-System databases are ignored (`const exclude = ['mysql','performance_schema','sys', 'information_schema'];` line 64)
 
 ## folder.js
 
@@ -89,4 +102,3 @@ Cron jobs should be setup to execute mysqldump, compress and upload files
 15 00 1 * * nodejs /usr/local/sbin/dlid-backup/db.js --dateformat="YYYY-MM" -z="mysql-backup" -p="{hostname}/mysql/monthly" --keep 12 > /usr/local/sbin/dlid-backup/mysql-monthly.log
 30 00 * * 1 nodejs /usr/local/sbin/dlid-backup/db.js --dateformat="YYYY[W]WW" -z="mysql-backup" -p="{hostname}/mysql/weekly" --keep 12 > /usr/local/sbin/dlid-backup/mysql-weekly.log
 05 00 * * * nodejs /usr/local/sbin/dlid-backup/db.js --dateformat="ddd" -z="mysql-backup" -p="{hostname}/mysql/weekdaily" > /usr/local/sbin/dlid-backup/mysql-weekdaily.log
-```
