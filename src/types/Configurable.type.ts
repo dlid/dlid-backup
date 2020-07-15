@@ -32,6 +32,7 @@ export interface ConfigurableSetting {
 
 export enum ConfigurableSettingType {
     String,
+    MacroString,
     Int,
     FolderPath,
     FolderPathArray,

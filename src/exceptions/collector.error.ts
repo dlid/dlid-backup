@@ -18,9 +18,21 @@ export class CollectorError extends DlidBackupError {
     }
 }
 
+export class TargetError extends DlidBackupError {
+    constructor(public targetName: string, message: string, public errorDetails: string = null) {
+        super(`${targetName} (Target)`, message, errorDetails);
+    }
+}
+
 export class ParameterException extends DlidBackupError {
     constructor(public propertyName: string, public propertyValue: string, message: string, public configurableName?: string, isCollector?: boolean) {
         super(`${ typeof isCollector !== 'undefined' ? (isCollector == true ? '-s.' : '-t.') : '' }${propertyName}`, message, '');
+    }
+}
+
+export class MacroError extends DlidBackupError {
+    constructor(message: string) {
+        super('macros', message, '');
     }
 }
 

@@ -20,6 +20,7 @@ export class PropertyParser {
 
         switch(prop.type) {
                 case ConfigurableSettingType.String:
+                case ConfigurableSettingType.MacroString:
                         parsedValue = this.parseAsString(originalValue, prop);
                 break;
                 case ConfigurableSettingType.Int:

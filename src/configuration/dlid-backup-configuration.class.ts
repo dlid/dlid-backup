@@ -3,7 +3,7 @@ import { commandLineParser } from "./command-line-parameter-parser.instance";
 import { propertyParser } from "./propertyParser.class";
 import { Logger, logger, joinWithOr } from "../util";
 import { ParameterException } from "../exceptions";
-
+import {MacroStore} from '../macros/macro-store.class';
 
 export class DlidBackupConfiguration {
     
@@ -12,6 +12,7 @@ export class DlidBackupConfiguration {
     sourceOptions?: any;
     target?: Configurable;
     targetOptions?: any
+    macros: MacroStore;
     
     private log: Logger;
     
@@ -24,7 +25,7 @@ export class DlidBackupConfiguration {
     */
     public async parseParameters(): Promise<void> {
         return new Promise((resolve, reject) => {
-            const actions: string[] = ['run', 'explain', 'dry-run', 'help'];
+            const actions: string[] = ['run', 'help']; // , 'explain', 'dry-run',
             let args = this.parameters.slice(2);
             let action;
             if (args.length === 0) {
@@ -43,7 +44,7 @@ export class DlidBackupConfiguration {
             if (action === 'help') {
                 this.log.trace('Help parameter detected');
                 this.action = 'help ' + args.slice(1).join(' ')
-                return;
+                return resolve();
             }
             
             const targets = this.configurables.filter(c => c instanceof CollectorBase).map(c => c.name);

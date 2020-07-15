@@ -6,6 +6,8 @@ export function typeToString(type: ConfigurableSettingType) {
         return 'string[]';
         case ConfigurableSettingType.String:
         return 'string';
+        case ConfigurableSettingType.MacroString:
+        return 'macroString';
         case ConfigurableSettingType.Int:
         return 'int';
         case ConfigurableSettingType.IntArray:

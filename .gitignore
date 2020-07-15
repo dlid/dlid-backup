@@ -3,7 +3,10 @@
 *firebase*.json
 
 dist
+release
 .vscode
+
+
 
 # Logs
 logs

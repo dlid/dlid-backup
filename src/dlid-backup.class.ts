@@ -1,8 +1,8 @@
-import { Configurable } from "./types";
+import { Configurable, TargetArguments } from "./types";
 import { CollectorBase } from "./types/CollectorBase.type";
 import { TargetBase } from "./types/TargetBase.type";
 import { DlidBackupConfiguration } from "./configuration/dlid-backup-configuration.class";
-import { typeToString } from "./util";
+import { typeToString, LogLevel } from "./util";
 import tmp = require('tmp');
 import { Archive } from "./archive/Archive";
 const os = require('os');
@@ -12,19 +12,27 @@ import { CollectorArguments } from "./types/CollectorArguments.interface";
 import { moveMessagePortToContext } from "worker_threads";
 import {formatISO} from 'date-fns';
 import { getUtcNowString } from "./util/getUtcNowString.function";
+import { formatMacroDate } from "./util/formatMacroDate.function";
+import {DateMacroFormatter} from './macros/date-macro.class';
+import { MacroStore } from "./macros/macro-store.class";
+import fs = require('fs');
+import yaml = require('yaml');
+import { FilesystemCollector, MySqlCollector } from "./collectors";
+import { FileSystemTarget, FireStoreTarget } from "./targets";
 
 
-export class DlidBackup {
+ export class DlidBackup {
     
     private config: DlidBackupConfiguration;
     private readmeLines: string[] = [];
+    private version = '%DLID-BACKUP-VERSION%'; // Replaced by script
     
-    constructor(private version: string, configurables: Configurable[], parameters: string[]) {
-        this.config = new DlidBackupConfiguration(configurables, parameters);
-        logger.info('version is ', this.version);
+    constructor(private parameters: string[]) {
+        logger.setLogLevel(LogLevel.Info, this.parameters);
     }
     
     private async collect(): Promise<CollectionResult> {
+
         let isCollected = false;
         let zipFilename = tmp.tmpNameSync({postfix: '.zip'});
         const archive = new Archive(zipFilename);
@@ -55,27 +63,56 @@ export class DlidBackup {
         return new Promise(async (resolve, reject) => {
 
             var start = new Date();
-            
-            // First - parse parameters
+
             try {
+
+                const targetsAndCollectors = [
+                    new FilesystemCollector(),
+                    new MySqlCollector(),
+                    new FileSystemTarget(),
+                    new FireStoreTarget()
+                ];
+                
+                this.config = new DlidBackupConfiguration(targetsAndCollectors, this.parameters);
+                logger.info('version is ', this.version);
+                
+
+            this.config.macros = new MacroStore();
+            this.config.macros.add(new DateMacroFormatter());
+            // this.config.macros.add(new DateMacroFormatter());
+
+
+            // First - parse parameters
                 await this.config.parseParameters();
-            } catch (e) {
-                return reject(e);
-            }
+
+
+            // console.log(yaml.stringify({
+            //     'source': {
+            //         'type': this.config.source.name,
+            //         'options': this.config.sourceOptions
+            //     },
+            //     'target': {
+            //         'type': this.config.target.name,
+            //         'options': this.config.targetOptions
+            //     }
+            // }));
+           
+
+          //  throw "x";
+
             
             if (this.config.action.indexOf('help') === 0) {
+
                 this.help(this.config.action.replace(/^help\s?/, ''));
+
                 return;
             }
 
             let collectionResult: CollectionResult;
 
-            try {
-                // Execute Collector
+
                 collectionResult = await this.collect();
-            } catch (e) {
-                return reject(e);
-            }
+
 
             if (!collectionResult.isCollected) {
                 logger.warn('No backup data was collected');
@@ -83,9 +120,6 @@ export class DlidBackup {
 
                 return resolve();
             }
-
-
-            try {
 
                 const readme: string[] = [];
  
@@ -107,23 +141,60 @@ export class DlidBackup {
                 logger.debug('Adding dlid-backup.txt to zip file');
     
                 await collectionResult.archive.save();
-
+ 
+                const target = <any>this.config.target as TargetBase;
                 
-            } catch (e) {
-                return reject(e);
+                const args: TargetArguments = {
+                    archiveFilename: collectionResult.zipFilename,
+                    config: this.config,
+                    options: this.config.targetOptions
+                };
+
+                await target.run(args)
+
+                this.deleteCollectedFile(collectionResult.zipFilename);
+
+
+            } catch(e) {
+                reject(e);
             }
 
-            console.log("SEND THE FILE TO TARGET! " + collectionResult.zipFilename);
-
-
-            // 
-            
-            
             resolve(true);
         });
     }
-    
+
+    private deleteCollectedFile(filename: string) {
+        try {
+            if (fs.existsSync(filename)) {
+                logger.debug('Deleting ', filename);
+                fs.unlinkSync(filename);
+            }
+        } catch(e) {
+            logger.debug('Error deleting ', filename);
+        }
+
+    }
+
     private help(topic: string = null) {
+
+            if (topic === 'macros') {
+
+                console.log();
+                console.log("MacroStrings can be used to dynamically name files and folders");
+                console.log();
+                
+                const d = this.config.macros.format("weekly/{date:yyyy}/{date:yyyy'W'II}");
+                const daily = this.config.macros.format("monthly/{date:yyyy}/{date:yyyy-MM}");
+
+                console.log(`-t.folder="weekly/{date:yyyy}/{date:yyyy'W'II}"    -   Save weekly backup in weekly folder "${d}"`);
+                console.log(`-t.folder="monthly/{date:yyyy}/{date:yyyy-MM}"    -   Save monthly backup "${daily}"`);
+                console.log();
+
+                console.log("{date:<pattern>} - See https://date-fns.org/v2.14.0/docs/format for valid patterns");
+                // console.log("{env:<name>}     - Environment variable value");
+                return;
+            }
+
         
         console.log(`
         dlid-backup will zip \x1b[32msource\x1b[0m data
