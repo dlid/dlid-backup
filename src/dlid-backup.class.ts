@@ -12,13 +12,13 @@ import { CollectorArguments } from "./types/CollectorArguments.interface";
 import { moveMessagePortToContext } from "worker_threads";
 import {formatISO} from 'date-fns';
 import { getUtcNowString } from "./util/getUtcNowString.function";
-import { formatMacroDate } from "./util/formatMacroDate.function";
+import { formatMacroDate } from "./util/formatMacroDate.function"; 
 import {DateMacroFormatter} from './macros/date-macro.class';
 import { MacroStore } from "./macros/macro-store.class";
 import fs = require('fs');
 import yaml = require('yaml');
 import { FilesystemCollector, MySqlCollector } from "./collectors";
-import { FileSystemTarget, FireStoreTarget } from "./targets";
+import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
 
 
  export class DlidBackup {
@@ -70,7 +70,8 @@ import { FileSystemTarget, FireStoreTarget } from "./targets";
                     new FilesystemCollector(),
                     new MySqlCollector(),
                     new FileSystemTarget(),
-                    new FireStoreTarget()
+                    new FireStoreTarget(),
+                    new SynologyFilestationTarget()
                 ];
                 
                 this.config = new DlidBackupConfiguration(targetsAndCollectors, this.parameters);
@@ -149,10 +150,14 @@ import { FileSystemTarget, FireStoreTarget } from "./targets";
                     config: this.config,
                     options: this.config.targetOptions
                 };
-
+                
+                try {
                 await target.run(args)
+                } catch(e) {
+                    return reject(e);
+                }
 
-                this.deleteCollectedFile(collectionResult.zipFilename);
+                // this.deleteCollectedFile(collectionResult.zipFilename);
 
 
             } catch(e) {
@@ -182,7 +187,7 @@ import { FileSystemTarget, FireStoreTarget } from "./targets";
                 console.log();
                 console.log("MacroStrings can be used to dynamically name files and folders");
                 console.log();
-                
+                    
                 const d = this.config.macros.format("weekly/{date:yyyy}/{date:yyyy'W'II}");
                 const daily = this.config.macros.format("monthly/{date:yyyy}/{date:yyyy-MM}");
 
@@ -202,12 +207,11 @@ import { FileSystemTarget, FireStoreTarget } from "./targets";
             
             console.log(`Usage
             
-            dlid-backup [run|explain]
-            \x1b[32m-s:\x1b[0m<type> \x1b[32m--source:\x1b[0m<type>               The Source to make a backup of
-                \x1b[32m-s.\x1b[0m<option>=val \x1b[32m--source\x1b[0m.<option>=val   Set an option for the source
-                    -t:<type> --target:<type>               The target - where to save the backup
-                    -t.<option>=val --target.<option>=val   Set an option for the target
-                    -o=filename.zip                         The filename of the resulting zip archive
+dlid-backup [run|explain]
+\x1b[32m-s:\x1b[0m<type> \x1b[32m--source:\x1b[0m<type>               The Source to make a backup of
+\x1b[32m-s.\x1b[0m<option>=val \x1b[32m--source\x1b[0m.<option>=val   Set an option for the source
+-t:<type> --target:<type>               The target - where to save the backup
+-t.<option>=val --target.<option>=val   Set an option for the target
                     
                     Sources
                     `);
@@ -232,8 +236,8 @@ import { FileSystemTarget, FireStoreTarget } from "./targets";
                             
                             console.log(`${padded} - ${required}${opt.description}`);
                         });
-                        
-                        console.log("\n");
+                         
+                        console.log("\n"); 
                     });
                     
                     console.log('Targets\n');

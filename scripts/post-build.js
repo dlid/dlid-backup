@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { argv } = require('process');
 const packageContent = fs.readFileSync('./package.json');
+const getSize = require('get-folder-size');
 const packageJson = JSON.parse(packageContent);
 const r = require('replace-in-file');
 let version = packageJson.version;
@@ -12,7 +13,7 @@ if (argv.includes('--development')) {
     isRelease = true;
 }
 
-let targetFolder = isRelease ? 'release/' : 'dist/';
+let targetFolder = isRelease ? 'dist/release/' : 'dist/dev/';
 
 replaceVersionNumber();
 createNpmFiles();
@@ -32,6 +33,13 @@ function replaceVersionNumber() {
     });
 }
  
+function bytesToSize(bytes) {
+    var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes == 0) return '0 Byte';
+    const v = Math.floor(Math.log(bytes) / Math.log(1024))
+    var i = parseInt( v.toString()  );
+    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+ };
 
 function createNpmFiles() {
     const fs = require('fs');
@@ -71,5 +79,13 @@ function createNpmFiles() {
     fs.writeFileSync(`./${targetFolder}bin/index.js`, `#!/usr/bin/env node
 ${debugInfo}require('../lib/run');
     `);
+
+ 
+getSize(`./${targetFolder}`, (err, size) => {
+  if (err) { throw err; }
+ 
+  loginfo(bytesToSize(size));
+});
+
 
 } 
