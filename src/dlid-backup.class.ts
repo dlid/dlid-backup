@@ -12,14 +12,13 @@ import { CollectorArguments } from "./types/CollectorArguments.interface";
 import { moveMessagePortToContext } from "worker_threads";
 import {formatISO} from 'date-fns';
 import { getUtcNowString } from "./util/getUtcNowString.function";
-import { formatMacroDate } from "./util/formatMacroDate.function";
+import { formatMacroDate } from "./util/formatMacroDate.function"; 
 import {DateMacroFormatter} from './macros/date-macro.class';
 import { MacroStore } from "./macros/macro-store.class";
 import fs = require('fs');
 import yaml = require('yaml');
 import { FilesystemCollector, MySqlCollector } from "./collectors";
-import { FileSystemTarget, FireStoreTarget } from "./targets";
-import { SynologyFilestationTarget } from "./targets/syn-nas/syn-nas.target";
+import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
 
 
  export class DlidBackup {

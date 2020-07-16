@@ -13,7 +13,7 @@ if (argv.includes('--development')) {
     isRelease = true;
 }
 
-let targetFolder = isRelease ? 'release/' : 'dist/';
+let targetFolder = isRelease ? 'dist/release/' : 'dist/dev/';
 
 replaceVersionNumber();
 createNpmFiles();

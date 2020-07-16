@@ -12,6 +12,9 @@ import { getFilesToDelete } from '../../util/getFilesToDelete.function';
 import axios = require('axios')
 import { Logger, logger } from "../../util";
 import { create } from "archiver";
+import fs = require('fs');
+import FormData = require('form-data');
+
 
 
 
@@ -139,16 +142,18 @@ export class SynologyFilestationTarget extends TargetBase {
       });
     }
 
-    private getBaseUrl(path: string, params: any) {
+    private getBaseUrl(path: string, params: any, options?: { noSid: boolean }) {
         params = params || {};
 
         if (params._sid) {
             delete params._sid;
         }
 
-        if (this.sid) {
+        if (this.sid && !options?.noSid) {
             params._sid = this.sid;
         }
+
+        
 
         path = path.replace(/^\/+/, '');
 
@@ -348,8 +353,46 @@ export class SynologyFilestationTarget extends TargetBase {
     }
 
     async uploadFile(folder: string, pathToFile: string, targetFilename: string) {
-      return new Promise((resolve, reject) => {
-          this.log.info(`Uploading to ${folder}/${targetFilename}`);
+      return new Promise(async (resolve, reject) => {
+            
+        
+        const url = this.getBaseUrl('/entry.cgi', { 
+            // api: 'SYNO.FileStation.Upload',
+            // version: 1,
+            // method: 'upload'
+         }, {noSid: true});
+
+        var stream = fs.createReadStream(pathToFile);
+        
+        const form_data = new FormData();
+        form_data.append('api', 'SYNO.FileStation.Upload');
+        form_data.append('version', '1');
+        form_data.append('method', 'upload');
+        form_data.append('path', folder);
+        form_data.append('create_parents', "true");
+        form_data.append('_sid', this.sid);
+
+        // const writeStream = fs.createWriteStream('./file.txt');
+        //var x = new Blob([fs.readFileSync(pathToFile)]);
+//        form_data.append('file', <any>stream, targetFilename);
+form_data.append('file', fs.readFileSync(pathToFile), targetFilename);
+
+        let headers = form_data.getHeaders();
+        
+        const request_config = {
+          headers: headers
+        };
+
+        this.log.info(`Uploading to ${folder}/${targetFilename}`);
+
+        // form_data.pipe(writeStream);
+this.log.info('url', url);
+        await axios.default.post(url, form_data, request_config).then(ok => {
+            console.log("OK", ok);
+        }, err => {
+            console.log("ERR", err.code, err.message);
+        });
+
       })
   }
 
