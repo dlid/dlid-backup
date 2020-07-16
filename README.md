@@ -63,6 +63,12 @@ npm run build   # Will build into release/ folder
 npm test       # Will run tests
 ```
 
+------------------
+
+Changes
+
+## 0.5.2 (2020-07-16)
+- Added Target: Synology FileStation
 
 
 --------------------------------

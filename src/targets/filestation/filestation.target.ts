@@ -14,6 +14,10 @@ import { Logger, logger } from "../../util";
 import { create } from "archiver";
 import fs = require('fs');
 import FormData = require('form-data');
+import got = require('got');
+import { pipeline } from "stream";
+import { dir } from "console";
+
 
 
 
@@ -77,6 +81,14 @@ export class SynologyFilestationTarget extends TargetBase {
 
                await this.uploadFile(folder, args.archiveFilename, filename);
 
+
+                // Cleanup
+                let keep = parseInt(args.options['keep'], 10);
+                let keepPattern = args.options['keep-match'];
+                if (keep > 0) {
+                    await this.cleanup(folder, keep, keepPattern)
+                }
+    
                 // const rootShare = sharedFolders.data.shares.find(s => s.name === share && s.isdir);
 
                 // if (!rootShare) {
@@ -238,8 +250,8 @@ export class SynologyFilestationTarget extends TargetBase {
                         path: result.data?.data?.folders[0].name
                     } as SynologyGetInfoItem);
                 } else {
-                    this.log.debug(`Request failed`, result.data);
-                    return reject(result.data);
+                    this.log.debug(`Request failed`, JSON.stringify(result.data));
+                    return reject(new TargetError(this.constructor.name, `Error creating target folder ${path}`, JSON.stringify(result.data)));
                 }
             }, err => {
                 reject(err);
@@ -315,7 +327,130 @@ export class SynologyFilestationTarget extends TargetBase {
         });
     }
 
-    private async cleanup(bucket: any, directory: string, keep: number, keepPattern: string) {
+    private async listFiles(path: string): Promise<SynologyGetInfoResponse> {
+        return new Promise((resolve, reject) => {
+            const url = this.getBaseUrl('/entry.cgi', { 
+                api: 'SYNO.FileStation.List',
+                'version': 1,
+                'method': 'list',
+                folder_path: path,
+                'additional': ['real_path', 'size', 'type', 'time'].join(',')
+             });
+
+             axios.default.get<{ error?: { code: string  }, success: boolean, data: { files: {
+                 code?: number;
+                 isdir: boolean;
+                 name?: string;
+                 path: string,
+                 type?: string,
+                 additional?: {
+                     real_path: string;
+                     size: number;
+                     time: {
+                         atime: number;
+                         mtime: number;
+                         ctime: number;
+                         crtime: number;
+                     }
+
+                 }
+             }[] }  }>(url).then(result => {
+                if (result.data.success) {
+
+                    let data: SynologyGetInfoResponse = {
+                        success: true,
+                        data: {
+                            files: result.data.data.files.map(m => {
+                                return {
+                                    size: m.additional?.size,
+                                    accessed: m.additional?.time ? new Date(m.additional.time.atime * 1000) : null,
+                                    created: m.additional?.time ? new Date(m.additional.time.crtime * 1000) : null,
+                                    modified: m.additional?.time ? new Date(m.additional.time.mtime * 1000) : null,
+                                    changed: m.additional?.time ? new Date(m.additional.time.ctime * 1000) : null,
+                                    isdir: m.isdir,
+                                    name: m.name,
+                                    path: m.path,
+                                    real_path: m.additional?.real_path,
+                                    type: m.type,
+                                    code: m.code,
+                                    exists: m.code === 418 || m.code === 408 ? false : true
+                                } as SynologyGetInfoItem;
+                            })                     
+                        }
+                    };
+                    resolve(data);
+                }
+
+
+                resolve(result.data);
+            }, err => {
+                if (err.response?.status === 403) {
+                    reject(new TargetError(this.constructor.name, 'Login request responsed with 403 Forbidden'));
+                } else {
+                    reject(new TargetError(this.constructor.name, 'Error when logging in to NAS server', err));
+                }
+                reject(err);
+            });
+
+        });
+    }
+
+    private async startDelete(filenames: string[]): Promise<string> {
+        const self = this;
+        return new Promise(async (resolve, reject) => {
+            const url = this.getBaseUrl('/entry.cgi', { 
+                api: 'SYNO.FileStation.Delete',
+                'version': 1,
+                'method': 'start',
+                path: filenames.join(',')
+             });
+
+             await axios.default.get(url).then(ok => {
+                if (!ok.data.success) {
+                    reject(new TargetError(self.constructor.name, '', 'NAS Server responded with error ' + ok.data.error?.code));
+                } else {
+                    self.log.debug(`Task to delete files was successfullt started: ` + ok.data?.data?.taskid);
+                    resolve(ok.data);
+                }
+            }, err => {
+                console.log("Error deleting files", err.code, err.message);
+            });
+
+        });
+    }
+
+    private async cleanup(directory: string, keep: number, keepPattern: string) {
+        const self = this;
+        return new Promise(async (resolve, reject) => {
+            let info = (keepPattern ? 'For files maching ' + keepPattern : 'For all files') + ` in ${directory} - keep only the ${keep} newest`;
+
+            this.listFiles(directory).then(async ja => {
+                    
+                    const filesToDelete = getFilesToDelete(ja.data.files.map(i => {
+                        return {
+                            created: i.created,
+                            fullName: i.path,
+                            id: i.path,
+                        }  as FileInformation;
+                    }), keep, keepPattern);
+
+                    if (filesToDelete.length > 0) {
+                        self.log.debug(`Found ${filesToDelete} files to delete in target location`);
+                        filesToDelete.forEach(f => self.log.debug(`File will be deleted: ${f.fullName}`));
+                        await this.startDelete(filesToDelete.map(f => f.fullName));
+                    } else {
+                        self.log.debug(`No files to delete in target location`);
+                    }
+
+//                    console.log(JSON.stringify(ja, null, 2));
+            }, err => {
+                reject("fel vid info");
+            });
+
+
+        });
+
+
     //   return new Promise(async (resolve, reject) => {
     //     try {
     //       const files = await bucket.getFiles({
@@ -352,47 +487,43 @@ export class SynologyFilestationTarget extends TargetBase {
     //   });
     }
 
-    async uploadFile(folder: string, pathToFile: string, targetFilename: string) {
+    async uploadFile(folder: string, pathToFile: string, targetFilename: string): Promise<SYNOFileStationUploadResponse> {
+        const self = this;
+
       return new Promise(async (resolve, reject) => {
             
-        
-        const url = this.getBaseUrl('/entry.cgi', { 
-            // api: 'SYNO.FileStation.Upload',
-            // version: 1,
-            // method: 'upload'
-         }, {noSid: true});
+        const streamToBlob = require('stream-to-blob');
+        const url = this.getBaseUrl('/entry.cgi', {});
 
         var stream = fs.createReadStream(pathToFile);
+        var size = fs.statSync(pathToFile);
         
         const form_data = new FormData();
         form_data.append('api', 'SYNO.FileStation.Upload');
-        form_data.append('version', '1');
+        form_data.append('version', '2');
         form_data.append('method', 'upload');
         form_data.append('path', folder);
-        form_data.append('create_parents', "true");
-        form_data.append('_sid', this.sid);
+        form_data.append('create_parent', 'true');
+        form_data.append('overwrite', 'true');
+        form_data.append('file', stream, targetFilename);
+        self.log.info(`Uploading to "${folder}" - ${url}`);
 
-        // const writeStream = fs.createWriteStream('./file.txt');
-        //var x = new Blob([fs.readFileSync(pathToFile)]);
-//        form_data.append('file', <any>stream, targetFilename);
-form_data.append('file', fs.readFileSync(pathToFile), targetFilename);
-
-        let headers = form_data.getHeaders();
-        
-        const request_config = {
-          headers: headers
+        const request_config: axios.AxiosRequestConfig = {
+            headers: form_data.getHeaders(),
+            'maxContentLength': Infinity
         };
-
-        this.log.info(`Uploading to ${folder}/${targetFilename}`);
-
-        // form_data.pipe(writeStream);
-this.log.info('url', url);
-        await axios.default.post(url, form_data, request_config).then(ok => {
-            console.log("OK", ok);
+            
+        await axios.default.post<SYNOFileStationUploadResponse>(url, form_data, request_config).then(ok => {
+            if (!ok.data.success) {
+                reject(new TargetError(self.constructor.name, '', 'NAS Server responded with error ' + ok.data.error?.code));
+            } else {
+                self.log.debug(`File was successfully uploaded`);
+                resolve(ok.data);
+            }
         }, err => {
             console.log("ERR", err.code, err.message);
         });
-
+        
       })
   }
 
@@ -493,4 +624,15 @@ export interface SynologyGetInfoItem {
     modified?: Date; // additional.mtime * 1000 
     exists?: boolean;
     code?: number;
+}
+
+export interface SYNOFileStationUploadResponse {
+    error?: { code: string  },
+    data: {
+        blSkip: boolean;
+        file: string;
+        pid: number;
+        progress: 1;
+    },
+    success: boolean;
 }

@@ -157,7 +157,7 @@ import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./
                     return reject(e);
                 }
 
-                this.deleteCollectedFile(collectionResult.zipFilename);
+                // this.deleteCollectedFile(collectionResult.zipFilename);
 
 
             } catch(e) {
