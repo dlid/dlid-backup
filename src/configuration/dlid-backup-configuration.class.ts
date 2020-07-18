@@ -20,11 +20,59 @@ export class DlidBackupConfiguration {
         this.log = logger.child(this.constructor.name)
     }
     
+    private test2() {
+
+        const args = this.parameters.slice(2);
+        const action = args.shift();
+        
+        console.log("action", action, "args", args);
+
+        const x = this.getWithOptions('source', 's', args);
+        
+
+        
+        
+         
+    }
+
+
+    private getWithOptions(long: string, short: string, args: string[]) {
+        
+        const name = long ? `--${long}` : `-${short}`;
+
+        let newargs: string[] = [];
+
+        args.forEach((f, ix) => {
+            const m = f.match(`^(-${short}|--${long})([=:])(.*?)$`);
+            if (m) {
+                newargs.push(m[1]);
+                newargs.push(m[3]);
+            } else {
+                newargs.push(f);
+            }
+        });
+
+
+        console.log("newargs", newargs);
+
+      
+
+    }
+
+
     /**
     * Parse the incoming parameters in order to resolve the configuration
     */
     public async parseParameters(): Promise<void> {
+
+
         return new Promise((resolve, reject) => {
+
+
+            this.test2();
+           
+            return reject("nä"); 
+
             const actions: string[] = ['run', 'help']; // , 'explain', 'dry-run',
             let args = this.parameters.slice(2);
             let action;

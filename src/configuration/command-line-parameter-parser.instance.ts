@@ -30,6 +30,9 @@ class CommandLineParameterParser {
     let remainingArguments = [];
     let configExists = false;
 
+    console.log("parsing");
+  console.log(args);
+
     args.forEach((f, ix) => {
       
       const m = f.match(`^(-${short}|--${long})([\\.:])([a-z0-9-]+)(?:=?(.*|$))`);
@@ -69,6 +72,8 @@ class CommandLineParameterParser {
       }
 
     });
+
+    console.log(collectorName, settings);
 
     return { collectorName, settings, remainingArguments, configExists };
 
