@@ -1,11 +1,11 @@
-import { Configurable, TargetArguments } from "./types";
-import { CollectorBase } from "./types/CollectorBase.type";
+import { TargetArguments } from "./types";
 import { TargetBase } from "./types/TargetBase.type";
 import { DlidBackupConfiguration } from "./configuration/dlid-backup-configuration.class";
 import { typeToString, LogLevel } from "./util";
 import tmp = require('tmp');
 import { Archive } from "./archive/Archive";
 const os = require('os');
+import { CollectorBase } from './types/CollectorBase.type';
 import { CollectionResult } from "./types/CollectionResult.type";
 import { logger } from './util';
 import { CollectorArguments } from "./types/CollectorArguments.interface";
@@ -17,17 +17,28 @@ import {DateMacroFormatter} from './macros/date-macro.class';
 import { MacroStore } from "./macros/macro-store.class";
 import fs = require('fs');
 import yaml = require('yaml');
-import { FilesystemCollector, MySqlCollector } from "./collectors";
-import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
+import { MySqlCollector } from "./collectors";
+//import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
+import { inject, autoInjectable } from "tsyringe";
+import { ArgvManagerInterface, CommandManagerInterface, ArgvParameterArray, SourceManagerInterface, ParsedCommand, UserOptionManagerInterface } from "./lib";
+import { rejects } from "assert";
+import { ParameterException } from "./exceptions";
 
 
+@autoInjectable()
  export class DlidBackup {
     
     private config: DlidBackupConfiguration;
     private readmeLines: string[] = [];
     private version = '%DLID-BACKUP-VERSION%'; // Replaced by script
+    private parameters: ArgvParameterArray;
     
-    constructor(private parameters: string[]) {
+    constructor(
+        @inject("ArgvManagerInterface") private argvManager: ArgvManagerInterface,
+        @inject("CommandManagerInterface") private commandManager: CommandManagerInterface,
+        @inject("SourceManagerInterface") private sourceManager: SourceManagerInterface,
+        @inject("UserOptionManagerInterface") private userOptionManager: UserOptionManagerInterface,
+    ) {
         logger.setLogLevel(LogLevel.Info, this.parameters);
     }
     
@@ -36,7 +47,7 @@ import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./
         let isCollected = false;
         let zipFilename = tmp.tmpNameSync({postfix: '.zip'});
         const archive = new Archive(zipFilename);
-        const source = <any>this.config.source as CollectorBase;
+        const source = <any>this.config.source as CollectorBase<any>;
         
 
         const args: CollectorArguments = {
@@ -47,7 +58,10 @@ import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./
         };
 
         try {
-            isCollected = await source.collect(args);
+
+            logger.warn(`NOTE! SHOW THAT WE'RE WORKING IF COLLECTING TAKES LONG!`);
+
+            // isCollected = await source.collect(args);
             if (args.readmeLines?.length > 0) {
                 this.readmeLines = this.readmeLines.concat(args.readmeLines);
             }
@@ -60,26 +74,66 @@ import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./
     }
 
     async run(): Promise<boolean> {
-        return new Promise(async (resolve, reject) => {
 
+        return new Promise((resolve, reject) => {
+
+            try {
+
+                        //1) First normalize parameters and parse commands
+                this.parameters = this.argvManager.parseArguments(process.argv.slice(2));
+                const commands = this.commandManager.parseFromCommandLineParameters(this.parameters);
+                const sources: {source: CollectorBase<any>, command: ParsedCommand}[] = [];
+
+                //2) Find 'source' commands and its corresponding CollectorBase 
+                commands.filter(f => f.commandLongName === 'source').forEach(source => {
+                    if (source.parameters?.length > 0) {
+                        const s = this.sourceManager.getByName(source.parameters[0]);
+                        if (s) {
+                            sources.push({source: s, command: source});
+                        } else {
+                            throw new ParameterException('source', null, `Unknown Source type "${source.parameters[0]}"`);
+                        }
+                    }
+                })
+
+                console.log("COLLECT FROM", sources.length, "source(s)");
+                // console.log("SEND TO", targets.length, "target(s)");
+
+                sources.forEach(s => {
+                    this.userOptionManager.resolveFromParsedCommand(s.source.options, s.command);
+                });
+
+            } catch(e) {
+                return reject(e);
+            }
+
+        });
+
+
+
+
+
+
+        return new Promise(async (resolve, reject) => {
+console.log("HO");
             var start = new Date();
 
             try {
 
                 const targetsAndCollectors = [
-                    new FilesystemCollector(),
-                    new MySqlCollector(),
-                    new FileSystemTarget(),
-                    new FireStoreTarget(),
-                    new SynologyFilestationTarget()
+                   // new FilesystemCollector(),
+                    // new MySqlCollector(),
+                    // new FileSystemTarget(),
+                    // new FireStoreTarget(),
+                    // new SynologyFilestationTarget()
                 ];
                 
-                this.config = new DlidBackupConfiguration(targetsAndCollectors, this.parameters);
-                logger.info('version is ', this.version);
-                
+//            this.config = new DlidBackupConfiguration(targetsAndCollectors, this.parameters);
+            logger.info('version is ', this.version);
 
-            this.config.macros = new MacroStore();
-            this.config.macros.add(new DateMacroFormatter());
+                
+//            this.config.macros = new MacroStore();
+//            this.config.macros.add(new DateMacroFormatter());
             // this.config.macros.add(new DateMacroFormatter());
 
 
@@ -182,87 +236,87 @@ import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./
 
     private help(topic: string = null) {
 
-            if (topic === 'macros') {
+//             if (topic === 'macros') {
 
-                console.log();
-                console.log("MacroStrings can be used to dynamically name files and folders");
-                console.log();
+//                 console.log();
+//                 console.log("MacroStrings can be used to dynamically name files and folders");
+//                 console.log();
                     
-                const d = this.config.macros.format("weekly/{date:yyyy}/{date:yyyy'W'II}");
-                const daily = this.config.macros.format("monthly/{date:yyyy}/{date:yyyy-MM}");
+//                 const d = this.config.macros.format("weekly/{date:yyyy}/{date:yyyy'W'II}");
+//                 const daily = this.config.macros.format("monthly/{date:yyyy}/{date:yyyy-MM}");
 
-                console.log(`-t.folder="weekly/{date:yyyy}/{date:yyyy'W'II}"    -   Save weekly backup in weekly folder "${d}"`);
-                console.log(`-t.folder="monthly/{date:yyyy}/{date:yyyy-MM}"    -   Save monthly backup "${daily}"`);
-                console.log();
+//                 console.log(`-t.folder="weekly/{date:yyyy}/{date:yyyy'W'II}"    -   Save weekly backup in weekly folder "${d}"`);
+//                 console.log(`-t.folder="monthly/{date:yyyy}/{date:yyyy-MM}"    -   Save monthly backup "${daily}"`);
+//                 console.log();
 
-                console.log("{date:<pattern>} - See https://date-fns.org/v2.14.0/docs/format for valid patterns");
-                // console.log("{env:<name>}     - Environment variable value");
-                return;
-            }
+//                 console.log("{date:<pattern>} - See https://date-fns.org/v2.14.0/docs/format for valid patterns");
+//                 // console.log("{env:<name>}     - Environment variable value");
+//                 return;
+//             }
 
         
-        console.log(`
-        dlid-backup will zip \x1b[32msource\x1b[0m data
-            and save that data in \x1b[36mtarget\x1b[0m.`);
+//         console.log(`
+//         dlid-backup will zip \x1b[32msource\x1b[0m data
+//             and save that data in \x1b[36mtarget\x1b[0m.`);
             
-            console.log(`Usage
+//             console.log(`Usage
             
-dlid-backup [run|explain]
-\x1b[32m-s:\x1b[0m<type> \x1b[32m--source:\x1b[0m<type>               The Source to make a backup of
-\x1b[32m-s.\x1b[0m<option>=val \x1b[32m--source\x1b[0m.<option>=val   Set an option for the source
--t:<type> --target:<type>               The target - where to save the backup
--t.<option>=val --target.<option>=val   Set an option for the target
+// dlid-backup [run|explain]
+// \x1b[32m-s:\x1b[0m<type> \x1b[32m--source:\x1b[0m<type>               The Source to make a backup of
+// \x1b[32m-s.\x1b[0m<option>=val \x1b[32m--source\x1b[0m.<option>=val   Set an option for the source
+// -t:<type> --target:<type>               The target - where to save the backup
+// -t.<option>=val --target.<option>=val   Set an option for the target
                     
-                    Sources
-                    `);
+//                     Sources
+//                     `);
                     
-                    var collectors = this.config.configurables.filter(cfg => cfg instanceof CollectorBase);
-                    var targets = this.config.configurables.filter(cfg => cfg instanceof TargetBase);
+//                     var collectors = this.config.configurables.filter(cfg => cfg instanceof CollectorBase);
+//                     var targets = this.config.configurables.filter(cfg => cfg instanceof TargetBase);
                     
                     
-                    collectors.forEach(collector => {
-                        const c = <any>collector as CollectorBase;
-                        console.log(`\x1b[32m-s:${collector.name}\x1b[0m - ${c.description}`);
+//                     collectors.forEach(collector => {
+//                         const c = <any>collector as CollectorBase;
+//                         console.log(`\x1b[32m-s:${collector.name}\x1b[0m - ${c.description}`);
                         
-                        var maxKeyLen = collector.getOptions().reduce((v, va) => {
-                            var l = `  -s.${va.key}=<${typeToString(va.type)}>`.length;
-                            return l > v ? l : v;
-                        }, 0) + 4;
+//                         var maxKeyLen = collector.getOptions().reduce((v, va) => {
+//                             var l = `  -s.${va.key}=<${typeToString(va.type)}>`.length;
+//                             return l > v ? l : v;
+//                         }, 0) + 4;
                         
-                        collector.getOptions().forEach(opt => {
-                            var protot = `  -s.${opt.key}=<${typeToString(opt.type)}>`;
-                            var padded = protot.padEnd(maxKeyLen, ' ');
-                            var required =  opt.isRequired === true ? '[required]' : '';
+//                         collector.getOptions().forEach(opt => {
+//                             var protot = `  -s.${opt.key}=<${typeToString(opt.type)}>`;
+//                             var padded = protot.padEnd(maxKeyLen, ' ');
+//                             var required =  opt.isRequired === true ? '[required]' : '';
                             
-                            console.log(`${padded} - ${required}${opt.description}`);
-                        });
+//                             console.log(`${padded} - ${required}${opt.description}`);
+//                         });
                          
-                        console.log("\n"); 
-                    });
+//                         console.log("\n"); 
+//                     });
                     
-                    console.log('Targets\n');
-                    targets.forEach(collector => {
-                        const c = <any>collector as TargetBase;
-                        console.log(`\x1b[36m-t:${collector.name}\x1b[0m - ${c.description}`);
+//                     console.log('Targets\n');
+//                     targets.forEach(collector => {
+//                         const c = <any>collector as TargetBase;
+//                         console.log(`\x1b[36m-t:${collector.name}\x1b[0m - ${c.description}`);
                         
-                        var maxKeyLen = collector.getOptions().reduce((v, va) => {
-                            var l = `  -t.${va.key}=<${typeToString(va.type)}>`.length;
-                            return l > v ? l : v;
-                        }, 0) + 4;
+//                         var maxKeyLen = collector.getOptions().reduce((v, va) => {
+//                             var l = `  -t.${va.key}=<${typeToString(va.type)}>`.length;
+//                             return l > v ? l : v;
+//                         }, 0) + 4;
                         
-                        collector.getOptions().forEach(opt => {
-                            var protot = `  \x1b[36m-t\x1b[0m.${opt.key}=<${typeToString(opt.type)}>`;
-                            var padded = protot.padEnd(maxKeyLen, ' ');
-                            var required =  opt.isRequired === true ? '[required]' : '';
+//                         collector.getOptions().forEach(opt => {
+//                             var protot = `  \x1b[36m-t\x1b[0m.${opt.key}=<${typeToString(opt.type)}>`;
+//                             var padded = protot.padEnd(maxKeyLen, ' ');
+//                             var required =  opt.isRequired === true ? '[required]' : '';
                             
-                            console.log(`${padded} - ${required}${opt.description}`);
-                        });
+//                             console.log(`${padded} - ${required}${opt.description}`);
+//                         });
                         
-                        console.log("\n");
-                    })
+//                         console.log("\n");
+//                     })
                     
                     
-                }
-                
+//                 }
+    }
                 
             }

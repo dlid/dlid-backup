@@ -1,14 +1,14 @@
-//var AdmZip = require('adm-zip');
-import * as AdmZip from 'adm-zip';
-import { Archive } from '../archive/Archive';
 import { CollectorArguments } from './CollectorArguments.interface';
+import { UserOptionInterface } from '../lib';
 
-
-export abstract class CollectorBase  {
+export abstract class CollectorBase<T>  {
   
+  public abstract name: string;
+
   public abstract description: string;
 
-  abstract async collect(args: CollectorArguments);
+  public abstract options?: UserOptionInterface[]
+
+  abstract async collect(config: T, args: CollectorArguments);
 
 }
-

@@ -1,9 +1,9 @@
 import path = require('path');
 import fs = require('fs');
 import { Logger, logger } from '../util/logger';
-import { ConfigurableSetting, ConfigurableSettingType } from '../types';
 import { typeToString } from '../util';
 import { extractZipFolderName } from '../util/extractZipFolderName.function';
+import { UserOptionInterface, UserOptionType } from '../lib';
 
 export class PropertyParser {
     
@@ -13,29 +13,29 @@ export class PropertyParser {
         this.log = logger.child(this.constructor.name);
     }
 
-    parsePropertyValue(configurableName: string, propertyName: string, prop: ConfigurableSetting, originalValue: any, log?: Logger) {
+    parsePropertyValue(configurableName: string, propertyName: string, prop: UserOptionInterface, originalValue: any, log?: Logger) {
         log = log || logger;
     
         let parsedValue: { value: any, error: string } = null;
 
         switch(prop.type) {
-                case ConfigurableSettingType.String:
-                case ConfigurableSettingType.MacroString:
+                case UserOptionType.String:
+                case UserOptionType.MacroString:
                         parsedValue = this.parseAsString(originalValue, prop);
                 break;
-                case ConfigurableSettingType.Int:
+                case UserOptionType.Int:
                         parsedValue = this.parseAsInt(originalValue);
                 break;
-                case ConfigurableSettingType.StringArray:
+                case UserOptionType.StringArray:
                         parsedValue = this.parseAsStringArray(originalValue, prop);
                 break;
-                case ConfigurableSettingType.FilePath:
+                case UserOptionType.FilePath:
                         parsedValue = this.parseAsFilePath(originalValue, prop);
                 break;
-                case ConfigurableSettingType.FolderPath:
+                case UserOptionType.FolderPath:
                         parsedValue = this.parseAsFolderPath(originalValue, prop);
                 break;
-                case ConfigurableSettingType.FolderPathArray:
+                case UserOptionType.FolderPathArray:
                         parsedValue = this.parseAsFolderPath(originalValue, prop);
                 break;
                 default:
@@ -55,7 +55,7 @@ export class PropertyParser {
         return { value, error };
     }
     
-    parseAsString(val: any, prop: ConfigurableSetting) {
+    parseAsString(val: any, prop: UserOptionInterface) {
         let error = '';
         let value = null;
         
@@ -67,7 +67,7 @@ export class PropertyParser {
         return { error, value };
     }  
     
-    parseAsStringArray(val: string, prop: ConfigurableSetting): {error: string, value: string[]} {
+    parseAsStringArray(val: string, prop: UserOptionInterface): {error: string, value: string[]} {
         let error = '';
         let value = null;
         
@@ -84,7 +84,7 @@ export class PropertyParser {
         return { error, value };
     }
 
-    parseAsFolderPathArray(val: string, prop: ConfigurableSetting): {error: string, value: string[]} {
+    parseAsFolderPathArray(val: string, prop: UserOptionInterface): {error: string, value: string[]} {
         
         let { error, value} = this.parseAsStringArray(val, prop);
 
@@ -95,7 +95,7 @@ export class PropertyParser {
         return { error, value };
     }
 
-    parseAsFolderPath(val: string, prop: ConfigurableSetting) {
+    parseAsFolderPath(val: string, prop: UserOptionInterface) {
         let error = '';
         let value = null;
     
@@ -134,7 +134,7 @@ export class PropertyParser {
         return { error, value };
     }
     
-    parseAsFilePath(val: any, prop: ConfigurableSetting) {
+    parseAsFilePath(val: any, prop: UserOptionInterface) {
         let error = '';
         let value = null;
         

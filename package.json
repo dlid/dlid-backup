@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "node_modules/.bin/mocha --reporter spec --require ts-node/register src/**/*.test.ts",
-    "test:watch": "node_modules/.bin/mocha --watch --watch-extensions ts --reporter spec --require ts-node/register src/**/*.test.ts",
+    "test:watch": "node_modules/.bin/mocha --watch --reporter spec --watch-files src/**/*.test.ts --require ts-node/register src/**/*.test.ts",
+    "test:coverage": "nyc --reporter=html npm run test",
     "start": "node node_modules/tsc-watch/index.js --onsuccess \"node ./scripts/post-build --development\"",
     "build": "node_modules/.bin/tsc --outDir ./dist/release/lib & node ./scripts/post-build"
   },
@@ -28,8 +29,10 @@
     "got": "^11.5.0",
     "multer": "^1.4.2",
     "node-blob": "0.0.2",
+    "reflect-metadata": "^0.1.13",
     "stream-to-blob": "^2.0.1",
     "tmp": "^0.1.0",
+    "tsyringe": "^4.3.0",
     "yaml": "^1.10.0"
   },
   "devDependencies": {

@@ -1,22 +1,22 @@
-import { ConfigurableSettingType } from "../types";
+import { UserOptionType } from "../lib";
 
-export function typeToString(type: ConfigurableSettingType) {
+export function typeToString(type: UserOptionType) {
     switch(type) {
-        case ConfigurableSettingType.StringArray:
+        case UserOptionType.StringArray:
         return 'string[]';
-        case ConfigurableSettingType.String:
+        case UserOptionType.String:
         return 'string';
-        case ConfigurableSettingType.MacroString:
+        case UserOptionType.MacroString:
         return 'macroString';
-        case ConfigurableSettingType.Int:
+        case UserOptionType.Int:
         return 'int';
-        case ConfigurableSettingType.IntArray:
+        case UserOptionType.IntArray:
         return 'int[]';
-        case ConfigurableSettingType.FilePath:
+        case UserOptionType.FilePath:
         return 'filepath';
-        case ConfigurableSettingType.FolderPath:
+        case UserOptionType.FolderPath:
         return 'folderpath';
-        case ConfigurableSettingType.FolderPathArray:
+        case UserOptionType.FolderPathArray:
         return 'folderpath[]';
         default:
         return 'unknown';

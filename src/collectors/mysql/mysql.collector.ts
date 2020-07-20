@@ -1,23 +1,31 @@
-import { Configurable, ConfigurableSetting, ConfigurableSettingType } from "../../types/Configurable.type";
 import { CollectorBase } from "../../types/CollectorBase.type";
 import { Archive } from "../../archive/Archive";
 import { CollectorError, ParameterException } from "../../exceptions/collector.error";
 import {logger, Logger} from './../../util/logger'
 import fs = require("fs");
 import { CollectorArguments } from "../../types/CollectorArguments.interface";
+import { UserOptionInterface, UserOptionType } from "../../lib";
 
-
-// import { pathMatch } from "tough-cookie";
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
-export class MySqlCollector extends CollectorBase implements Configurable {
+export interface MysqlSourceOptions {
+    host: string;
+    port: number;
+    mysqlPath?: string;
+    username?: string;
+    password?: string;
+    include?: string[];
+    exclude?: string[];
+}
+
+export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
     name: string = 'mysql';
     description: string = 'Backup MySQL Database dumps';
     sensitiveValues = {};
 
-    private options;
+    private optionsx;
     private log: Logger;
 
     constructor() {
@@ -25,10 +33,11 @@ export class MySqlCollector extends CollectorBase implements Configurable {
         this.log = logger.child('MySQL Collector');
     }
 
-    async collect(args: CollectorArguments): Promise<any> {
+    async collect(config: MysqlSourceOptions, args: CollectorArguments): Promise<any> {
+
         this.log.debug('Entering MySQL Collector');
         return new Promise<boolean>(async (resolve, reject) => {
-            this.options = args.options;
+            this.optionsx = args.options;
             let databaseList: string[];
             let databasesBackedUp = 0;
 
@@ -252,24 +261,25 @@ export class MySqlCollector extends CollectorBase implements Configurable {
             options['include'] && options['exclude'] ? `Except for ${options['exclude'].join(', ')}` : null
         ].filter(m => m);
     }
-    getOptions(): ConfigurableSetting[] {
+
+    get options(): UserOptionInterface[] {
         return [
             {
                 key: 'mysql-path',
-                type: ConfigurableSettingType.FolderPath,
+                type: UserOptionType.FolderPath,
                 isRequired: false,
                 description: 'Path to Mysql Server bin folder (Windows only)'
             },
             {
                 key: 'host',
-                type: ConfigurableSettingType.String,
+                type: UserOptionType.String,
                 isRequired: true,
                 description: 'The hostname of the MySql server',
                 prompt: 'MySQL Host name'
             },
             {
                 key: 'port',
-                type: ConfigurableSettingType.Int,
+                type: UserOptionType.Int,
                 isRequired: true,
                 defaultValue: 3306,
                 description: 'MySQL Server port number',
@@ -277,7 +287,7 @@ export class MySqlCollector extends CollectorBase implements Configurable {
             },
             {
                 key: 'username',
-                type: ConfigurableSettingType.String,
+                type: UserOptionType.String,
                 isRequired: false,
                 defaultValue: null,
                 description: 'MySQL user name',
@@ -285,7 +295,7 @@ export class MySqlCollector extends CollectorBase implements Configurable {
             },
             {
                 key: 'password',
-                type: ConfigurableSettingType.String,
+                type: UserOptionType.String,
                 isRequired: false,
                 defaultValue: null,
                 description: 'MySQL password',
@@ -294,19 +304,19 @@ export class MySqlCollector extends CollectorBase implements Configurable {
             },
             {
                 key: 'exclude',
-                type: ConfigurableSettingType.StringArray,
+                type: UserOptionType.StringArray,
                 defaultValue: ['information_schema', 'mysql', 'sys', 'performance_schema'],
                 description: 'Databases to exclude',
                 prompt: 'Exclude databases'
             },
             {
                 key: 'include',
-                type: ConfigurableSettingType.StringArray,
+                type: UserOptionType.StringArray,
                 multi: true,
                 defaultValue: null,
                 description: 'Databases to include (Use * as wildcard)',
                 prompt: 'Include databases'
             }
-        ];
-    }
+        ];    }
+
 }

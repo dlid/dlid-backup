@@ -1,48 +1,10 @@
-export interface Configurable {
-    name: string;
-    getOptions(): ConfigurableSetting[];
-    
-    explain(options: any): string[];
-
-}
 
 
 
 
-export interface ConfigurableSetting {
-    key: string;
-    type: ConfigurableSettingType;
-    defaultValue?: any;
-    isRequired?: boolean;
-    description: string;
-    multi?: boolean;
-    examples?: { [example: string]: string };
-    allowZipTargetFolder?: boolean;
 
-    /**
-     * Never log this value
-     */
-    isSensitive?: boolean;
 
-    /**
-     * Used for the guide to ask the user for this value
-     */
-    prompt?: string;
-}
 
-export enum ConfigurableSettingType {
-    String,
-    MacroString,
-    Int,
-    FolderPath,
-    FolderPathArray,
-    FilePath,
-    StringArray,
-    IntArray,
-    Float,
-    FloatArray,
-    Custom
-}
 
 
 // dlid-backup

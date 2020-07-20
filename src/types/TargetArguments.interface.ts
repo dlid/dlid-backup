@@ -1,4 +1,4 @@
-import { DlidBackupConfiguration } from "../configuration/dlid-backup-configuration.class";
+//import { DlidBackupConfiguration } from "../configuration/dlid-backup-configuration.class";
 
 export interface TargetArguments {
     /**
@@ -14,5 +14,5 @@ export interface TargetArguments {
     /**
      * The entire current configuration
      */
-    config: DlidBackupConfiguration;
+    config: any; // DlidBackupConfiguration;
 } 

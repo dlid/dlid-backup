@@ -1,5 +1,5 @@
 import { Archive } from "../archive/Archive";
-import { DlidBackupConfiguration } from "../configuration/dlid-backup-configuration.class";
+///import { DlidBackupConfiguration } from "../configuration/dlid-backup-configuration.class";
 
 export interface CollectorArguments {
     /**
@@ -15,7 +15,7 @@ export interface CollectorArguments {
     /**
      * The entire current configuration
      */
-    config: DlidBackupConfiguration;
+    config:any;// DlidBackupConfiguration;
 
     /**
      * The lines of text that will be added to the readme file of the archive
