@@ -32,6 +32,10 @@ export class SourceManager implements SourceManagerInterface {
         return this;
     }
 
+    public getAll(): CollectorBase<any>[] {
+        return this.sources.slice(0);
+    }
+
     public clear(): SourceManager {
         this.sources = [];
         return this;

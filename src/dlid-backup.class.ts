@@ -86,6 +86,16 @@ import { ParameterException } from "./exceptions";
                 const sources: {source: CollectorBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
                 const targets: {target: TargetBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
  
+                if (this.parameters.length === 0) {
+                    console.log("usage: dlid-backup run SOURCE [, SOURCE ...] TARGET [, TARGET ...]");
+                    
+                    
+                    this.sourceManager.getAll().forEach(src => {
+                        console.log(` --source ${src.name}`)
+                    })
+                    
+                }
+
                 //2) Find 'source' commands and its corresponding CollectorBase 
                 commands.filter(f => f.commandLongName === 'source' || f.commandLongName === 'target').forEach(command => {
                     if (command.parameters?.length > 0) {
@@ -127,8 +137,7 @@ import { ParameterException } from "./exceptions";
                     });
                 })
 
-            
-                console.log(targets[0].userOptions);
+                console.log(targets);
 
             } catch(e) {
                 return reject(e);
