@@ -1,11 +1,7 @@
 import { CollectorBase } from "../types";
-import { commandLineParser } from "./command-line-parameter-parser.instance";
-import { propertyParser } from "./propertyParser.class";
 import { Logger, logger, joinWithOr } from "../util";
-import { ParameterException } from "../exceptions";
 import {MacroStore} from '../macros/macro-store.class';
-import fs = require('fs');
-import { autoInjectable, injectable, inject } from "tsyringe";
+import { autoInjectable } from "tsyringe";
 import {CommandManagerInterface, UserOptionInterface } from './../lib';
 
 

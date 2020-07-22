@@ -4,7 +4,8 @@ import { CollectorError, ParameterException } from "../../exceptions/collector.e
 import {logger, Logger} from './../../util/logger'
 import fs = require("fs");
 import { CollectorArguments } from "../../types/CollectorArguments.interface";
-import { UserOptionInterface, UserOptionType } from "../../lib";
+import { UserOptionInterface, UserOptionType, ParsedCommand } from "../../lib";
+import { Hash } from "crypto";
 
 const os = require('os');
 const path = require('path');
@@ -33,7 +34,100 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
         this.log = logger.child('MySQL Collector');
     }
 
+    /**
+     * After command line argument is parsed as a MySQL source it will be passed into this function
+     * Here we can adjust or set new values before they are parsed and validated
+     * 
+     * In this case, we support writing --source mysql localhost:1605 include_db1 include_db2 
+     * instead of --source mysql --source.host=localhost --source.port=1605 --source.include include_db1 include_Db2
+     */
+    prepareParsedCommand(command: ParsedCommand): void {
+        if (command.parameters?.length > 0) {
+            if (command.parameters[0] === 'mysql') {
+                if( command.parameters.length > 1) {
+                    const p = this.parseHostParameter(command.parameters[1]);
+                    console.log(command);
+                    if (p.host) {
+                        const hasHost = command.options.find(o => o.key === 'host');
+                        if (!hasHost) {
+                            command.options.push({key: 'host', values: [p.host] });
+                        } else {
+                            hasHost.values.push(p.host);
+                        }
+                    }
+
+                    if (p.port) {
+                        const hasPort = command.options.find(o => o.key === 'port');
+                        if (!hasPort) {
+                            command.options.push({key: 'port', values: [p.port] });
+                        } else {
+                            hasPort.values.push(p.port);
+                        }
+                    }
+
+                    if (p.username) {
+                        const hasPort = command.options.find(o => o.key === 'username');
+                        if (!hasPort) {
+                            command.options.push({key: 'username', values: [p.username] });
+                        } else {
+                            hasPort.values.push(p.username);
+                        }
+                    }
+
+                    if (p.password) {
+                        const hasPort = command.options.find(o => o.key === 'password');
+                        if (!hasPort) {
+                            command.options.push({key: 'password', values: [p.password] });
+                        } else {
+                            hasPort.values.push(p.password);
+                        }
+                    }
+                }
+                if (command.parameters.length > 2) {
+                    const hasPort = command.options.find(o => o.key === 'include');
+                    if (!hasPort) {
+                        command.options.push({key: 'include', values: command.parameters.slice(2) });
+                    } else {
+                        command.parameters.slice(2).forEach(v => hasPort.values.push(v));
+                    }
+                }
+            }
+        }
+    }
+
+    private parseHostParameter(value: string): { port?: string, host?: string, username?: string, password?: string } {
+        let port: string;
+        let host: string;
+        let username: string;
+        let password: string;
+
+        host = value;
+
+        const m = value.match(/\:(\d+)$/);
+        if (m) {
+            port = m[1];
+            value = value.substr(0, m.index);
+        }
+
+        if (value.indexOf('@') !== -1) {
+            const parts = value.split('@');
+            const credentials = parts[0].split(':');
+            username = credentials[0];
+            if (credentials.length == 2) {
+                password = credentials[1];
+            }
+            host = parts[1];
+        }
+
+        return { port, host, username, password };
+    }
+
     async collect(config: MysqlSourceOptions, args: CollectorArguments): Promise<any> {
+
+        console.log("Gather sql databases using", config.mysqlPath);
+
+        return Promise.resolve();
+
 
         this.log.debug('Entering MySQL Collector');
         return new Promise<boolean>(async (resolve, reject) => {

@@ -1,16 +1,18 @@
 {
     "compilerOptions": {
         "experimentalDecorators": true,
-        "experimentalDecorators": true,
         "module": "commonjs",
         "target": "ES2018", 
         "outDir": "dist/dev/lib",
         "rootDir": "src",
         "lib": ["ES2018"],
+        "baseUrl": "./src",
+        
                 // "paths": {
         //     "root/*": ["src/*"]
         // } 
     },
+        "include": ["./src/*/**.ts"],
     "files": [
         "./src/run.ts"
     ]

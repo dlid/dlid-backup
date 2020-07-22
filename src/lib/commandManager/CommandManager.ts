@@ -4,7 +4,7 @@ import { ParsedCommand } from "./ParsedCommand.interface";
 import { ParameterException } from "../../exceptions";
 import { ArgvParameterArray } from "../argvManager";
 import { CommandInterface } from "./Command.interface";
-
+ 
 /**
 * Manage the commands allowed as CLI arguments 
 */

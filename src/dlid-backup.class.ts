@@ -20,7 +20,7 @@ import yaml = require('yaml');
 import { MySqlCollector } from "./collectors";
 //import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
 import { inject, autoInjectable } from "tsyringe";
-import { ArgvManagerInterface, CommandManagerInterface, ArgvParameterArray, SourceManagerInterface, ParsedCommand, UserOptionManagerInterface } from "./lib";
+import { ArgvManagerInterface, CommandManagerInterface, ArgvParameterArray, SourceManagerInterface, ParsedCommand, UserOptionManagerInterface, TargetManagerInterface } from "./lib";
 import { rejects } from "assert";
 import { ParameterException } from "./exceptions";
 
@@ -37,6 +37,7 @@ import { ParameterException } from "./exceptions";
         @inject("ArgvManagerInterface") private argvManager: ArgvManagerInterface,
         @inject("CommandManagerInterface") private commandManager: CommandManagerInterface,
         @inject("SourceManagerInterface") private sourceManager: SourceManagerInterface,
+        @inject("TargetManagerInterface") private targetManager: TargetManagerInterface,
         @inject("UserOptionManagerInterface") private userOptionManager: UserOptionManagerInterface,
     ) {
         logger.setLogLevel(LogLevel.Info, this.parameters);
@@ -79,29 +80,55 @@ import { ParameterException } from "./exceptions";
 
             try {
 
-                        //1) First normalize parameters and parse commands
+                 //1) First normalize parameters and parse them into "commands"
                 this.parameters = this.argvManager.parseArguments(process.argv.slice(2));
                 const commands = this.commandManager.parseFromCommandLineParameters(this.parameters);
-                const sources: {source: CollectorBase<any>, command: ParsedCommand}[] = [];
-
+                const sources: {source: CollectorBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
+                const targets: {target: TargetBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
+ 
                 //2) Find 'source' commands and its corresponding CollectorBase 
-                commands.filter(f => f.commandLongName === 'source').forEach(source => {
-                    if (source.parameters?.length > 0) {
-                        const s = this.sourceManager.getByName(source.parameters[0]);
-                        if (s) {
-                            sources.push({source: s, command: source});
-                        } else {
-                            throw new ParameterException('source', null, `Unknown Source type "${source.parameters[0]}"`);
+                commands.filter(f => f.commandLongName === 'source' || f.commandLongName === 'target').forEach(command => {
+                    if (command.parameters?.length > 0) {
+                        if (command.commandLongName === 'source') {
+                            const s = this.sourceManager.getByName(command.parameters[0]);
+                            if (s) {
+                                sources.push({source: s, command: command});
+                            } else {
+                                throw new ParameterException('source', null, `Unknown Source type "${command.parameters[0]}"`);
+                            }
+                        } else if (command.commandLongName === 'target') {
+                            const s = this.targetManager.getByName(command.parameters[0]);
+                            if (s) {
+                                targets.push({target: s, command: command});
+                            } else {
+                                throw new ParameterException('target', null, `Unknown Target type "${command.parameters[0]}"`);
+                            }
                         }
                     }
                 })
 
-                console.log("COLLECT FROM", sources.length, "source(s)");
-                // console.log("SEND TO", targets.length, "target(s)");
-
+                //3) Parse and validate the options
                 sources.forEach(s => {
-                    this.userOptionManager.resolveFromParsedCommand(s.source.options, s.command);
+                    s.userOptions = this.userOptionManager.resolveFromParsedCommand(s.source.name, s.source.options, s.command);
                 });
+
+                targets.forEach(t => {
+                    t.userOptions = this.userOptionManager.resolveFromParsedCommand(t.target.name, t.target.options, t.command);
+                });
+
+                // Create archive...
+
+                sources.forEach(async s => {
+                    await s.source.collect(s.userOptions, {
+                        archive: null,
+                        config: null,
+                        options: null,
+                        readmeLines: []
+                    });
+                })
+
+            
+                console.log(targets[0].userOptions);
 
             } catch(e) {
                 return reject(e);
@@ -197,7 +224,7 @@ console.log("HO");
     
                 await collectionResult.archive.save();
  
-                const target = <any>this.config.target as TargetBase;
+                const target = <any>this.config.target as TargetBase<any>;
                 
                 const args: TargetArguments = {
                     archiveFilename: collectionResult.zipFilename,
@@ -206,7 +233,7 @@ console.log("HO");
                 };
                 
                 try {
-                await target.run(args)
+                // await target.run(args)
                 } catch(e) {
                     return reject(e);
                 }

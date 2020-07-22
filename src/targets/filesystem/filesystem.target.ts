@@ -7,6 +7,88 @@
 // import { Logger, logger } from "../../util";
 // import { isSimpleMatch } from './../../util/isSimpleMatch.function'
 
+import { TargetBase, TargetArguments } from "../../types";
+import { UserOptionInterface, UserOptionType, ParsedCommand, UserOptionManagerInterface } from "../../lib";
+import { pathToFileURL } from "url";
+import { FileManagerInterface } from "../../lib/fileManager";
+import { inject, autoInjectable } from "tsyringe";
+import { Console } from "console";
+export interface FileSystemTargetOptions {
+     folder: string;
+     filename: string;
+     keep?: number;
+     'keep-match'?: string;
+} 
+@autoInjectable()
+export class FileSystemTarget extends TargetBase<FileSystemTargetOptions> {
+    name: string = 'filesystem';
+    description: string = 'Save backup to local filesystem';
+
+    constructor(
+        @inject("FileManagerInterface") private fileManager: FileManagerInterface,
+        @inject("UserOptionManagerInterface") private userOptionsManager: UserOptionManagerInterface
+    ) {
+        super();
+    }
+
+    async run(config: FileSystemTargetOptions, args: TargetArguments): Promise<void> {
+        
+        return new Promise((reject, resolve) => {
+                console.log("To target", config, args);
+
+        }); 
+
+    }
+
+    public prepareParsedCommand(command: ParsedCommand): void {
+        if (command.parameters.length > 1) {
+            const fileInfo = this.fileManager.getFileParts(command.parameters[1]);
+            if (fileInfo.filename !== '.') {
+                if (!fileInfo.filename.endsWith('.zip')) {
+                    fileInfo.filename += '.zip';
+                }
+                this.userOptionsManager.addOptionValue(command, 'folder', fileInfo.directory);
+                this.userOptionsManager.addOptionValue(command, 'filename', fileInfo.filename);
+            }
+        }
+    }
+
+    public get options(): UserOptionInterface[] {
+        return [
+            {
+                key: 'folder',
+                type: UserOptionType.String,
+                isRequired: true,
+                description: 'Directory where to save backups'
+            },
+            {
+                key: 'filename',
+                type: UserOptionType.String,
+                isRequired: true,
+                description: 'Filename of the backup file'
+            },
+            {
+                key: 'keep',
+                type: UserOptionType.Int,
+                isRequired: false,
+                description: 'Number of maximum files to keep at the target location'
+            },
+            {
+                key: 'keep-match',
+                type: UserOptionType.String,
+                isRequired: false,
+                description: 'Only list files matching this pattern when deciding what to keep',
+                examples: {
+                    "-t.keep-match=prefix_*": "Includes files starting with prefix_",
+                    "-t.keep-match=*_sufix": "Includes files ending with _sufix",
+                }
+            }
+        ];
+    }
+
+} 
+
+
 // export class FileSystemTarget extends TargetBase implements Configurable {
 //     description: string = 'Save backup to filesystem';
 //     name: string = 'filesystem';

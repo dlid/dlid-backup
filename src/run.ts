@@ -6,23 +6,31 @@ import "reflect-metadata";
 
 import { container, autoInjectable, inject } from "tsyringe";
 
-import { CommandManagerInterface, CommandManager, ArgvManager, SourceManagerInterface, SourceManager, UserOptionManager} from './lib';
+import { CommandManagerInterface, CommandManager, ArgvManager, SourceManagerInterface, SourceManager, UserOptionManager, TargetManager, TargetManagerInterface} from './lib';
 import { FileManager } from "./lib/fileManager";
 import {DlidBackup} from './dlid-backup.class';
 import { MySqlCollector } from "./collectors";
 import { DlidBackupError } from "./exceptions";
+import {FileSystemTarget} from './targets/index';
+
 
 container.register("CommandManagerInterface", {useValue: new CommandManager()});
 container.register("FileManagerInterface", {useValue: new FileManager()});
 container.register("SourceManagerInterface", { useValue: new SourceManager() });
+container.register("TargetManagerInterface", { useValue: new TargetManager() });
 container.register("ArgvManagerInterface", {useClass: ArgvManager});
 container.register("DlidBackup", { useClass: DlidBackup });
-container.register("MySqlCollectorInterface", { useClass: MySqlCollector });
 container.register("UserOptionManagerInterface", { useClass: UserOptionManager });
+
+container.register("MySqlCollectorInterface", { useClass: MySqlCollector });
+container.register("FilesystemTargetInterface", { useClass: FileSystemTarget });
 
 
 (container.resolve("SourceManagerInterface") as SourceManagerInterface)
-    .add("MySqlCollectorInterface")
+    .add("MySqlCollectorInterface");
+
+(container.resolve("TargetManagerInterface") as TargetManagerInterface)
+    .add("FilesystemTargetInterface")
 
 var x: DlidBackup = container.resolve("DlidBackup");
 x.run().then(f => {
