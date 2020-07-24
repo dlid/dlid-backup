@@ -16,8 +16,11 @@ export function extractZipFolderName(val: string, fallbackValue: string) {
     let value = val;
     const regexMatch = val.match(/^@([a-zA-Z0-9_-]+)\((.*?)\)$/);
     if (regexMatch) {
+        console.log("m", regexMatch);
         value = regexMatch[2]
         zipTargetFolder = regexMatch[1];
+    } else {
+        console.log(`no '${val}`);
     }
     return { zipTargetFolder, value }
 }

@@ -11,6 +11,8 @@ export abstract class CollectorBase<T>  {
 
   abstract async collect(config: T, args: CollectorArguments); 
 
+  abstract explain(config: T, args: CollectorArguments);
+
   /**
    * Before options are parsed - thhe collector can modify
    *

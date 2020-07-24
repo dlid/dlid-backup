@@ -6,3 +6,4 @@ export interface SourceManagerInterface {
     clear(): SourceManagerInterface;
     getAll(): CollectorBase<any>[];
 }
+ 

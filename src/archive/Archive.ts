@@ -14,12 +14,15 @@ export class Archive {
   finished: boolean = false;
 
   log: Logger;
+
+  private zipFilename: string;
   
-  constructor(private filename: string) {
+  constructor(filename: string) {
+    this.zipFilename = filename;
     this.log = logger.child(this.constructor.name);
     const self = this;
-    this.log.debug(`Initializing archive ${this.filename}`);
-    this.output = fs.createWriteStream(this.filename);
+    this.log.debug(`Initializing archive ${this.zipFilename}`);
+    this.output = fs.createWriteStream(this.zipFilename);
     this.zip = create('zip', {
       zlib: { level: 9 }
     });
@@ -58,6 +61,11 @@ export class Archive {
     });
 
     this.zip.pipe(this.output);
+  }
+
+
+  public get filename(): String {
+    return this.zipFilename;
   }
 
   addString(filenameInArchive: string, fileContent: string, comment: string = null) {
@@ -108,9 +116,9 @@ export class Archive {
       const inter = setInterval(() => {
         if (self.closed) {
           clearInterval(inter);
-          if (fs.existsSync(this.filename)) {
+          if (fs.existsSync(this.zipFilename)) {
             try {
-              fs.unlinkSync(this.filename);
+              fs.unlinkSync(this.zipFilename);
               self.log.debug('Temporary file was deleted');
             } catch(e) {
               self.log.info(`Error deleting temporary file`, e);

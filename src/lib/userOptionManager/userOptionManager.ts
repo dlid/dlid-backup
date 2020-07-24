@@ -65,17 +65,11 @@ export class UserOptionManager implements UserOptionManagerInterface {
         do {
             i = val.indexOf('-');
             if (i !== -1) {
-                
-              console.log("1", val.substring(0, i))      ;
-              console.log("2", val.substr(i + 1, 1).toUpperCase())
-              console.log("3", val.substring(i + 2));
-
                 val = val.substring(0, i) + val.substr(i + 1, 1).toUpperCase() + val.substring(i + 2);
 
             }
             n++;
             if (n > 50) {
-                console.log("BREAK!");
                 break;
             }
         } while (i !== -1);
@@ -176,7 +170,7 @@ export class UserOptionManager implements UserOptionManagerInterface {
             throw new ParameterException(`--${ctx.command.commandLongName}.${ctx.option.key} (${ctx.source})`, null, `${this.typeToString(ctx.option.type)} - Folder not found - ${zipFolderInfo.value}` + (zipFolderInfo.zipTargetFolder ? ` (Zip target folder "${zipFolderInfo.zipTargetFolder}" was removed from test)` : ''));
         }
 
-        return existingFolderPath;
+        return zipFolderInfo.zipTargetFolder ? `${zipFolderInfo.zipTargetFolder}@(${existingFolderPath})` : existingFolderPath;
     }
 
     private parseAsFolderPathArray(value: string[], ctx: UserOptionParseContext) {

@@ -6,10 +6,10 @@ import "reflect-metadata";
 
 import { container, autoInjectable, inject } from "tsyringe";
 
-import { CommandManagerInterface, CommandManager, ArgvManager, SourceManagerInterface, SourceManager, UserOptionManager, TargetManager, TargetManagerInterface} from './lib';
+import { CommandManagerInterface, CommandManager, ArgvManager, SourceManagerInterface, SourceManager, UserOptionManager, TargetManager, TargetManagerInterface, TableManager} from './lib';
 import { FileManager } from "./lib/fileManager";
 import {DlidBackup} from './dlid-backup.class';
-import { MySqlCollector } from "./collectors";
+import { MySqlCollector, FolderCollector, GlobCollector } from "./collectors";
 import { DlidBackupError } from "./exceptions";
 import {FileSystemTarget} from './targets/index';
 
@@ -19,14 +19,20 @@ container.register("FileManagerInterface", {useValue: new FileManager()});
 container.register("SourceManagerInterface", { useValue: new SourceManager() });
 container.register("TargetManagerInterface", { useValue: new TargetManager() });
 container.register("ArgvManagerInterface", {useClass: ArgvManager});
+container.register("TableManagerInterface", {useClass: TableManager});
+
 container.register("DlidBackup", { useClass: DlidBackup });
 container.register("UserOptionManagerInterface", { useClass: UserOptionManager });
 
 container.register("MySqlCollectorInterface", { useClass: MySqlCollector });
+container.register("FolderCollectorInterface", { useClass: FolderCollector });
+container.register("GlobCollector", { useClass: GlobCollector });
 container.register("FilesystemTargetInterface", { useClass: FileSystemTarget });
 
 
 (container.resolve("SourceManagerInterface") as SourceManagerInterface)
+    .add("FolderCollectorInterface")
+    .add("GlobCollector")
     .add("MySqlCollectorInterface");
 
 (container.resolve("TargetManagerInterface") as TargetManagerInterface)

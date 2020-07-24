@@ -41,4 +41,8 @@ export class TargetManager implements TargetManagerInterface {
         return this.targets.find(s => s.name === name);
     }
 
+    public getAll(): TargetBase<any>[] {
+        return this.targets.slice(0);
+    }
+
  }

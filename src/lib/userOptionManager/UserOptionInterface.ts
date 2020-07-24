@@ -9,6 +9,7 @@ export interface UserOptionInterface {
     multi?: boolean;
     examples?: { [example: string]: string };
     allowZipTargetFolder?: boolean;
+    zipTargetValueExample?: string;
 
     /**
      * Never log this value

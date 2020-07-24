@@ -17,15 +17,13 @@ export class CommandManager implements CommandManagerInterface {
         this.commands = [
             {longName: 'help', shortName: 'h', name: 'Help'},
             {longName: 'source', shortName: 's', name: 'Source'},
-            {longName: 'target', shortName: 't', name: 'Target'},
-            {longName: 'verbose', shortName: 'v', name: 'Verbose'}
+            {longName: 'target', shortName: 't', name: 'Target'}
         ];
     }
     
     public parseFromCommandLineParameters(normalizedParameters: ArgvParameterArray): ParsedCommand[] {
         let result: ParsedCommand[] = [];
     
-        
         let current: ParsedCommand = null;
         let currentOptionName: string = null;
         let prevOptionIndex: number;

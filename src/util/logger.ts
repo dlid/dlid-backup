@@ -15,26 +15,27 @@ export class Logger {
 
     constructor(private root: Logger = null, private name: string = null) {}
 
-    private trySetLogLevelFromParameters(args: string[]): boolean {
+    private trySetLogLevelFromParameters(args: string[]): string[] {
         const levels = ['verbose', 'trace', 'debug', 'info', 'warn', 'error']; // Must match the enum order
         const levelsFromParams: LogLevel[] = [];
-        args.forEach(arg => {
-            const m = arg.match(`^-l(og|)=(${levels.join('|')})`)
-            if (m) {
-                levelsFromParams.push(this.stringToLogLevel(m[2]));
-            } else if (arg.indexOf('--') == 0) {
+        args = args.slice(0);
+
+        for (var i=0; i < args.length; i++) {
+            const arg = args[i];
+            if (arg.indexOf('--') == 0) {
                 var lvl = arg.substr(2);
                 const ix = levels.indexOf(lvl);
                 if (ix !== -1) {
+                    this.setLogLevel(this.stringToLogLevel(levels[ix]));
                     levelsFromParams.push(this.stringToLogLevel(levels[ix]));
+                    args.splice(i, 1);
+                    return args;
                 }
             }
-        });
-        if (levelsFromParams.length > 0) {
-            this.setLogLevel(levelsFromParams.pop());
-            return true;
-        }
-        return false;
+        };
+
+        return undefined;
+        
     }
 
     private stringToLogLevel(str: string): LogLevel {
@@ -44,6 +45,7 @@ export class Logger {
             case 'debug': return LogLevel.Debug;
             case 'trace': return LogLevel.Trace;
             case 'warn': return LogLevel.Warning;
+            case 'error': return LogLevel.Error;
         }
         return LogLevel.Verbose;
     }
@@ -88,14 +90,16 @@ export class Logger {
         return 'VERBOSE';
     }
 
-    setLogLevel(level: LogLevel, parametersToParse: string[] = null) {
+    setLogLevel(level: LogLevel, parametersToParse: string[] = null): string[] {
         if (parametersToParse) {
-            if (this.trySetLogLevelFromParameters(parametersToParse)) {
-                return;
+            const newParameters = this.trySetLogLevelFromParameters(parametersToParse);
+            if (newParameters) {
+                return newParameters;
             }
         }
         Logger.logLevel = level;
-        this.debug(`LogLevel set to ${this.logLevelToString(level)}`);
+        console.log(`LogLevel set to ${this.logLevelToString(level)}`);
+        return parametersToParse;
     }
 
     getLogLevel(): LogLevel {

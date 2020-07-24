@@ -20,7 +20,7 @@ import yaml = require('yaml');
 import { MySqlCollector } from "./collectors";
 //import { FileSystemTarget, FireStoreTarget, SynologyFilestationTarget } from "./targets";
 import { inject, autoInjectable } from "tsyringe";
-import { ArgvManagerInterface, CommandManagerInterface, ArgvParameterArray, SourceManagerInterface, ParsedCommand, UserOptionManagerInterface, TargetManagerInterface } from "./lib";
+import { ArgvManagerInterface, CommandManagerInterface, ArgvParameterArray, SourceManagerInterface, ParsedCommand, UserOptionManagerInterface, TargetManagerInterface, TableManagerInterface, UserOptionType } from "./lib";
 import { rejects } from "assert";
 import { ParameterException } from "./exceptions";
 
@@ -32,6 +32,7 @@ import { ParameterException } from "./exceptions";
     private readmeLines: string[] = [];
     private version = '%DLID-BACKUP-VERSION%'; // Replaced by script
     private parameters: ArgvParameterArray;
+    private arvg: string[];
     
     constructor(
         @inject("ArgvManagerInterface") private argvManager: ArgvManagerInterface,
@@ -39,8 +40,9 @@ import { ParameterException } from "./exceptions";
         @inject("SourceManagerInterface") private sourceManager: SourceManagerInterface,
         @inject("TargetManagerInterface") private targetManager: TargetManagerInterface,
         @inject("UserOptionManagerInterface") private userOptionManager: UserOptionManagerInterface,
+        @inject("TableManagerInterface") private tableManager: TableManagerInterface,
     ) {
-        logger.setLogLevel(LogLevel.Info, this.parameters);
+        this.arvg = logger.setLogLevel(LogLevel.Info, process.argv.slice(2));
     }
     
     private async collect(): Promise<CollectionResult> {
@@ -53,8 +55,6 @@ import { ParameterException } from "./exceptions";
 
         const args: CollectorArguments = {
             archive: archive,
-            config: this.config,
-            options: this.config.sourceOptions,
             readmeLines: []
         };
 
@@ -76,68 +76,111 @@ import { ParameterException } from "./exceptions";
 
     async run(): Promise<boolean> {
 
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
 
             try {
 
                  //1) First normalize parameters and parse them into "commands"
-                this.parameters = this.argvManager.parseArguments(process.argv.slice(2));
+                this.parameters = this.argvManager.parseArguments(this.arvg);
+                const action = this.arvg[0];
                 const commands = this.commandManager.parseFromCommandLineParameters(this.parameters);
                 const sources: {source: CollectorBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
                 const targets: {target: TargetBase<any>, command: ParsedCommand, userOptions?: any}[] = [];
  
                 if (this.parameters.length === 0) {
-                    console.log("usage: dlid-backup run SOURCE [, SOURCE ...] TARGET [, TARGET ...]");
-                    
-                    
-                    this.sourceManager.getAll().forEach(src => {
-                        console.log(` --source ${src.name}`)
-                    })
-                    
+                    console.log(`usage:\n  dlid-backup ` + this.tableManager.fgGreen('{command}') + ` ` + this.tableManager.fgMagenta("{source}") + ' [, '+ this.tableManager.fgMagenta("{source}") + ' ...] \x1b[34m{target}\x1b[0m [, \x1b[34m{target}\x1b[0m ...] [--' + this.tableManager.fgYellow('{loglevel}') + ']\n');
+                    console.log("Data is collected by "+this.tableManager.fgMagenta("source") +"(s) zipped, and then sent to \x1b[34mtarget\x1b[0m(s)\n");
+
+                    console.log(`\nLog levels:`);
+                    console.log(this.tableManager.tabsToTable([
+                        `${this.tableManager.fgYellow('  trace')} or ${this.tableManager.fgYellow('verbose')}, ${this.tableManager.fgYellow('debug')}, ${this.tableManager.fgYellow('info')}, ${this.tableManager.fgYellow('warn')}, ${this.tableManager.fgYellow('error')}\t-\tDefault is ${this.tableManager.fgYellow('info')}`,
+                    ], 2));
+
+                    console.log(`Commands:`);
+                    console.log(this.tableManager.tabsToTable([
+                        `${this.tableManager.fgGreen('  run')}\t-\tRun the backup with your specified options.`,
+                        `${this.tableManager.fgGreen('  explain')}\t-\tExplains the options you have specified in a human readable format`,
+                        `${this.tableManager.fgGreen('  help')}\t-\tLearn how to use dlid-backup`
+                    ], 2));
+      
+                    console.log("Sources:")
+                    console.log(this.tableManager.tabsToTable(this.sourceManager.getAll().map(o => {
+                        return `${this.tableManager.fgMagenta(`  ${o.name}`)}\t-\t${o.description}`;
+                    }), 2));
+
+                    console.log("Targets:")
+                    console.log(this.tableManager.tabsToTable(this.targetManager.getAll().map(o => {
+                        return `${this.tableManager.fgBlue(`  ${o.name}`)}\t-\t${o.description}`;
+                    }), 2));
+
+
+                    console.log("Examples:")
+                    console.log(`  dlid-backup ` + this.tableManager.fgGreen('run ') + this.tableManager.fgMagenta('-s mysql -s.host localhost -s.username root -s.password 123') + this.tableManager.fgBlue(` -t filesystem -t.folder E:\\backup -t.filename "db_backup_{date:yyyy-MM-dd}.zip"`));
+                    console.log(`  dlid-backup run -s mysql root:123@localhost -t filesystem E:\\backup\\db_backup_{date:yyyy-MM-dd}.zip`);
+                    console.log(`  dlid-backup run -s folder -s.folder E:\\data -t filesystem E:\\backup\\data_backup{date:yyyy-MM-dd'T'HHmmss}.zip`);
+
+
                 }
 
-                //2) Find 'source' commands and its corresponding CollectorBase 
-                commands.filter(f => f.commandLongName === 'source' || f.commandLongName === 'target').forEach(command => {
-                    if (command.parameters?.length > 0) {
-                        if (command.commandLongName === 'source') {
-                            const s = this.sourceManager.getByName(command.parameters[0]);
-                            if (s) {
-                                sources.push({source: s, command: command});
-                            } else {
-                                throw new ParameterException('source', null, `Unknown Source type "${command.parameters[0]}"`);
-                            }
-                        } else if (command.commandLongName === 'target') {
-                            const s = this.targetManager.getByName(command.parameters[0]);
-                            if (s) {
-                                targets.push({target: s, command: command});
-                            } else {
-                                throw new ParameterException('target', null, `Unknown Target type "${command.parameters[0]}"`);
+                if (action === 'run' || action === 'explain') {
+
+                    //2) Find 'source' commands and its corresponding CollectorBase 
+                    commands.filter(f => f.commandLongName === 'source' || f.commandLongName === 'target').forEach(command => {
+                        if (command.parameters?.length > 0) {
+                            if (command.commandLongName === 'source') {
+                                const s = this.sourceManager.getByName(command.parameters[0]);
+                                if (s) {
+                                    sources.push({source: s, command: command});
+                                } else {
+                                    throw new ParameterException('source', null, `Unknown Source type "${command.parameters[0]}"`);
+                                }
+                            } else if (command.commandLongName === 'target') {
+                                const s = this.targetManager.getByName(command.parameters[0]);
+                                if (s) {
+                                    targets.push({target: s, command: command});
+                                } else {
+                                    throw new ParameterException('target', null, `Unknown Target type "${command.parameters[0]}"`);
+                                }
                             }
                         }
-                    }
-                })
-
-                //3) Parse and validate the options
-                sources.forEach(s => {
-                    s.userOptions = this.userOptionManager.resolveFromParsedCommand(s.source.name, s.source.options, s.command);
-                });
-
-                targets.forEach(t => {
-                    t.userOptions = this.userOptionManager.resolveFromParsedCommand(t.target.name, t.target.options, t.command);
-                });
-
-                // Create archive...
-
-                sources.forEach(async s => {
-                    await s.source.collect(s.userOptions, {
-                        archive: null,
-                        config: null,
-                        options: null,
-                        readmeLines: []
+                    })
+    
+                    //3) Parse and validate the options
+                    sources.forEach(s => {
+                        s.userOptions = this.userOptionManager.resolveFromParsedCommand(s.source.name, s.source.options, s.command);
                     });
-                })
-
-                console.log(targets);
+    
+                    targets.forEach(t => {
+                        t.userOptions = this.userOptionManager.resolveFromParsedCommand(t.target.name, t.target.options, t.command);
+                    });
+    
+    
+                    let zipFilename = tmp.tmpNameSync({postfix: '.zip'});
+                    const archive = new Archive(zipFilename);
+    
+                    // Create archive...
+                    sources.forEach(async s => {
+                        
+                        if (action === 'run') {
+    
+                            await s.source.collect(s.userOptions, {
+                                archive: archive,
+                                readmeLines: []
+                            });
+                        } else if (action === 'explain') {
+                            await s.source.explain(s.userOptions, {
+                                archive: archive,
+                                readmeLines: []
+                            });
+                        }
+                    })
+    
+                    console.log("Saved", archive.filename);
+                    await archive.save();
+    
+                    console.log(targets);
+    
+                }
 
             } catch(e) {
                 return reject(e);

@@ -11,7 +11,7 @@
     "test": "node_modules/.bin/mocha --reporter spec --require ts-node/register src/**/*.test.ts",
     "test:watch": "node_modules/.bin/mocha --watch --reporter spec --watch-files src/**/*.test.ts --require ts-node/register src/**/*.test.ts",
     "test:coverage": "nyc --reporter=html npm run test",
-    "start": "node node_modules/tsc-watch/index.js --onsuccess \"node ./scripts/post-build --development\"",
+    "start": "md dist/dev/bin & node node_modules/tsc-watch/index.js --onsuccess \"node ./scripts/post-build --development\"",
     "build": "node_modules/.bin/tsc --outDir ./dist/release/lib & node ./scripts/post-build"
   },
   "author": "David Lidström",

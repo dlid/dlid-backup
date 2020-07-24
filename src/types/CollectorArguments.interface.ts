@@ -8,16 +8,6 @@ export interface CollectorArguments {
     archive: Archive;
 
     /**
-     * The Collector option values
-     */
-    options: any;
-
-    /**
-     * The entire current configuration
-     */
-    config:any;// DlidBackupConfiguration;
-
-    /**
      * The lines of text that will be added to the readme file of the archive
      */
     readmeLines: string[];

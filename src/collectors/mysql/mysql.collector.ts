@@ -19,6 +19,7 @@ export interface MysqlSourceOptions {
     password?: string;
     include?: string[];
     exclude?: string[];
+    zipFolder?: string;
 }
 
 export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
@@ -124,52 +125,53 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
 
     async collect(config: MysqlSourceOptions, args: CollectorArguments): Promise<any> {
 
-        console.log("Gather sql databases using", config.mysqlPath);
+        console.log("Gather sql databases using", config);
 
         return Promise.resolve();
 
 
-        this.log.debug('Entering MySQL Collector');
-        return new Promise<boolean>(async (resolve, reject) => {
-            this.optionsx = args.options;
-            let databaseList: string[];
-            let databasesBackedUp = 0;
+        // this.log.debug('Entering MySQL Collector');
+        // return new Promise<boolean>(async (resolve, reject) => {
+        //     this.optionsx = args.options;
+        //     let databaseList: string[];
+        //     let databasesBackedUp = 0;
 
-            this.log.debug('Listing databases');
-            try {
-                databaseList = await this.mysql('SHOW DATABASES') as string[];
-            } catch(e) {
-                this.log.debug('Error listing databases');
-                reject(e);
-                return;
-            }
+        //     this.log.debug('Listing databases');
+        //     try {
+        //         databaseList = await this.mysql('SHOW DATABASES') as string[];
+        //     } catch(e) {
+        //         this.log.debug('Error listing databases');
+        //         reject(e);
+        //         return;
+        //     }
 
-            this.log.debug('Databases', databaseList);
+        //     this.log.debug('Databases', databaseList);
 
-            if (databaseList) {
-                for(var i = 0; i < databaseList.length; i++) {
-                    try {
-                        if (this.testShouldDumpDatabase(databaseList[i])) {
-                            const dump = await this.dumpDatabase(databaseList[i]);
-                            const dbFilename = `${databaseList[i]}.sql`;
-                            args.archive.addString(dbFilename, dump);
-                            this.log.info(`Collected ${dbFilename} MySQL dump`);
-                            args.readmeLines.push(`Added MySQL Dump of "${dbFilename}"`);
-                            databasesBackedUp += 1;
-                        } else {
-                            args.readmeLines.push(`Skipping database "${databaseList[i]}"`);
-                            this.log.debug(`Skipping database ${databaseList[i]}`);
-                        }
-                    } catch (e) {
-                        return reject(e);
-                    }
-                }
-            }
+        //     if (databaseList) {
+        //         for(var i = 0; i < databaseList.length; i++) {
+        //             try {
+        //                 if (this.testShouldDumpDatabase(databaseList[i])) {
+        //                     const dump = await this.dumpDatabase(databaseList[i]);
+        //                     const dbFilename = `${databaseList[i]}.sql`;
+        //                     args.archive.addString(dbFilename, dump);
+        //                     this.log.info(`Collected ${dbFilename} MySQL dump`);
+        //                     args.readmeLines.push(`Added MySQL Dump of "${dbFilename}"`);
+        //                     databasesBackedUp += 1;
+        //                 } else {
+        //                     args.readmeLines.push(`Skipping database "${databaseList[i]}"`);
+        //                     this.log.debug(`Skipping database ${databaseList[i]}`);
+        //                 }
+        //             } catch (e) {
+        //                 return reject(e);
+        //             }
+        //         }
+        //     }
 
-            resolve(databasesBackedUp > 0);
-        });
+        //     resolve(databasesBackedUp > 0);
+        // });
     }
 
+  
     
     dumpDatabase(name): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -337,23 +339,27 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
     }
 
 
-    explain(options: any): string[] {
-
+    explain(config: MysqlSourceOptions, args: CollectorArguments) {
+        console.log("config", config);
         let dbNames = '';
-        if (options['include']) {
-            dbNames = `database(s) ${options['include'].join(', ')}`
-        } else if (options['exclude']) {
-            dbNames = `all database(s) except ${options['exclude'].join(', ')}`
+        if (config.include?.length > 0) {
+            dbNames = `database${config.include.length == 1 ? '' : 's'} ${config.include.map(x => `"${x}"`).join(', ')}`
+        } else if (config.exclude?.length > 0) {
+            dbNames = `all database(s) except ${config.exclude.map(x => `"${x}"`).join(', ')}`
         } else {
             dbNames = `all dabases`;
+
         }
 
-        return [
-            `Connect to MySQL server at ${options['host']}:${options['port']}`,
-            options['mysql-path'] ? `Then, using binaries from ${options['mysql-path']}` : null,
-            `Dump ${dbNames}`,
-            options['include'] && options['exclude'] ? `Except for ${options['exclude'].join(', ')}` : null
-        ].filter(m => m);
+        let user = "";
+        if (config.username) {
+            user = ` as user "${config.username}" (${config.password ? 'using password' : 'no password'})`;
+        }
+    
+
+        console.log([
+            `Dump ${dbNames} from ${config.host}:${config.port}${user}` + (config.zipFolder ? ' into zip folder "' + config.zipFolder + '"': '')
+        ].join('\n'));
     }
 
     get options(): UserOptionInterface[] {
@@ -410,7 +416,16 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                 defaultValue: null,
                 description: 'Databases to include (Use * as wildcard)',
                 prompt: 'Include databases'
+            },
+            {
+                key: 'zip-folder',
+                type: UserOptionType.String,
+                multi: false,
+                defaultValue: null,
+                description: 'Folder name in zip file',
+                prompt: 'Target zip path'
             }
-        ];    }
+        ];
+    }
 
 }
