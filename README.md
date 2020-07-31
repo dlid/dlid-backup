@@ -9,7 +9,7 @@ dlid-backup
  -t:TARGET_TYPE 
  [-s.TARGET_PROPERTY=value]...
 ```
-
+ 
 All files are collected into a ZIP archive. This ZIP file is then sent to the target.
 
 # Installation
