@@ -11,7 +11,7 @@
     "test": "node_modules/.bin/mocha --reporter spec --require ts-node/register src/**/*.test.ts",
     "test:watch": "node_modules/.bin/mocha --watch --watch-extensions ts --reporter spec --require ts-node/register src/**/*.test.ts",
     "start": "node node_modules/tsc-watch/index.js --onsuccess \"node ./scripts/post-build --development\"",
-    "build": "node_modules/.bin/tsc --outDir ./dist/release/lib & node ./scripts/post-build"
+    "build": "node_modules/.bin/tsc --outDir ./dist/release/lib && node ./scripts/post-build"
   },
   "author": "David Lidström",
   "license": "SEE LICENSE IN LICENSE.md",
