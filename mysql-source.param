@@ -1,3 +1,5 @@
 --source=mysql
 --source.host=localhost
-/source.mysql-path=C:\Program Files\MySQL\MySQL Server 8.0\bin\
+--source.username=root
+--source.password=05t05tbara05t
+-s.mysql-path=C:\Program Files\MySQL\MySQL Server 8.0\bin\

@@ -1,3 +1,4 @@
+import { SourceResultInterface } from './../../lib/sourceManager/SourceResultInterface';
 import { CollectorBase } from "../../types/CollectorBase.type";
 import {logger, Logger} from './../../util/logger'
 import { CollectorArguments } from "../../types/CollectorArguments.interface";
@@ -44,10 +45,10 @@ export class FolderCollector extends CollectorBase<FolderSourceOptions> {
     }
 
 
-    async collect(config: FolderSourceOptions, args: CollectorArguments): Promise<any> {
+    async collect(config: FolderSourceOptions, args: CollectorArguments): Promise<SourceResultInterface> {
 
         this.log.debug('Entering Folder Collector');
-        return new Promise<boolean>(async (resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             console.log(config);
 
             this.log.info(`Collecting local files`);
@@ -55,6 +56,8 @@ export class FolderCollector extends CollectorBase<FolderSourceOptions> {
             if (config.folder.length === 0) {
                 throw new ParameterException('-s.folder', null, 'Please specify folder to collect');
             }
+
+            
     
             const zipFolders = {};
             let addedItems = 0;
@@ -62,21 +65,25 @@ export class FolderCollector extends CollectorBase<FolderSourceOptions> {
             for (let i=0; i < config.folder.length; i++) {
                 this.log.debug(`Collecting folder ${config.folder[i]}`);
                 let { zipTargetFolder, value } = extractZipFolderName(config.folder[i], ``);
-                console.log("target?", zipTargetFolder, value);
+                
                 const baseName = path.basename(value);
                 if (!zipTargetFolder) {
                     zipTargetFolder = baseName || `folder_${i}`;
                 }
+                if (!zipTargetFolder?.startsWith('\\')) {
+                    zipTargetFolder = `\\${zipTargetFolder}`;
+                }
+                console.log("target?", value, "=>", zipTargetFolder);
                 args.archive.addLocalFolder(value, zipTargetFolder);
                 addedItems++;
-                args.readmeLines.push(`Added folder ${value} to ${zipTargetFolder} in archive`);
+                // args.readmeLines.push(`Added folder ${value} to ${zipTargetFolder} in archive`);
                 this.log.debug(`Added folder ${value} to ${zipTargetFolder} in archive`);
             }
     
             this.log.success('Data collection complete');
                     
 
-            resolve(addedItems > 0);
+            resolve({});
         });
     }
 

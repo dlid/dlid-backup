@@ -3,25 +3,37 @@ var path = require('path');
 import { create } from 'archiver';
 import { WriteStream } from 'tty';
 import { logger, Logger } from '../util';
+import { DlidBackupError } from '../exceptions';
 
 export class Archive {
 
-  zip: any;
-  output: fs.WriteStream;
+  private zip: any;
+  private output: fs.WriteStream;
 
-  closed: boolean = false;
-  ended: boolean = false;
-  finished: boolean = false;
-
-  log: Logger;
+  private closed: boolean = false;
+  private ended: boolean = false;
+  private finished: boolean = false;
+  private initialized = false;
+  private log: Logger;
 
   private zipFilename: string;
   
   constructor(filename: string) {
     this.zipFilename = filename;
     this.log = logger.child(this.constructor.name);
+    
+  }
+
+  public get isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  private initializeArchive() {
+    if (this.initialized) {
+      return;
+    }
     const self = this;
-    this.log.debug(`Initializing archive ${this.zipFilename}`);
+    this.log.debug(`Opening archive ${this.zipFilename}`);
     this.output = fs.createWriteStream(this.zipFilename);
     this.zip = create('zip', {
       zlib: { level: 9 }
@@ -61,30 +73,32 @@ export class Archive {
     });
 
     this.zip.pipe(this.output);
+    this.initialized = true;
   }
 
 
-  public get filename(): String {
+  public get filename(): string {
     return this.zipFilename;
   }
 
-  addString(filenameInArchive: string, fileContent: string, comment: string = null) {
-    this.zip.append(fileContent, { name: filenameInArchive });
+  addString(filenameInArchive: string, fileContent: string, zipPath: string = null, comment: string = null) {
+    this.initializeArchive();
+    this.zip.append(fileContent, { name: filenameInArchive, prefix: zipPath });
   }
 
-  addLocalFile(localFilePath: string, zipFilename: string = null) {
-    if (!zipFilename) {
-      zipFilename = path.basename(localFilePath);
-    }
-    this.zip.file(localFilePath, { name: zipFilename });
+  addLocalFile(localFilePath: string, targetFileAndPath: string = null) {
+    this.initializeArchive();
+    this.zip.file(localFilePath, { prefix: targetFileAndPath });
   }
 
   addLocalFolder(localFilePath: string, targetDirName: string = null) {
+    this.initializeArchive();
+    this.log.debug(`addLocalFolder`, localFilePath, targetDirName);
     this.zip.directory(localFilePath, targetDirName);
    // this.zip.addLocalFolder(localFilePath, zipDirectory);
   }
 
-  bytesToSize(bytes) {
+  private bytesToSize(bytes) {
     var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     if (bytes == 0) return '0 Byte';
     const v = Math.floor(Math.log(bytes) / Math.log(1024))
@@ -93,16 +107,20 @@ export class Archive {
  };
 
   async save() {
-    this.log.info(`Finalizing ${this.filename}...`);
     const self = this;
     return new Promise((resolve, reject) => {
-      this.zip.finalize();
-      const inter = setInterval(() => {
-        if (self.closed) {
-          clearInterval(inter);
-          resolve();
-        }
-      }, 500);
+      if (this.initialized) {
+        this.log.info(`Creating ${this.filename}...`);
+        this.zip.finalize();
+        const inter = setInterval(() => {
+          if (self.closed) {
+            clearInterval(inter);
+            resolve();
+          }
+        }, 500);
+      } else {
+        reject(new DlidBackupError('archive', 'Attempting to save non-initialized archive', ''));
+      }
     });
   }
 
@@ -112,6 +130,9 @@ export class Archive {
     this.discarded = true;
     const self = this;
     return new Promise((resolve, reject) => {
+      if (!this.initialized) {
+        return resolve();
+      }
       this.zip.finalize();
       const inter = setInterval(() => {
         if (self.closed) {

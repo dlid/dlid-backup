@@ -1,11 +1,20 @@
+import { DateManager } from './../../lib/dateManager/DateManager';
+import { autoInjectable, inject } from 'tsyringe';
+import { format } from 'date-fns';
+import { FileManager } from './../../lib/fileManager/FileManager';
+import { TableManager } from './../../lib/tableManager/TableManager';
+import { SourceResultInterface } from './../../lib/sourceManager/SourceResultInterface';
 import { CollectorBase } from "../../types/CollectorBase.type";
-import { Archive } from "../../archive/Archive";
 import { CollectorError, ParameterException } from "../../exceptions/collector.error";
 import {logger, Logger} from './../../util/logger'
-import fs = require("fs");
 import { CollectorArguments } from "../../types/CollectorArguments.interface";
-import { UserOptionInterface, UserOptionType, ParsedCommand } from "../../lib";
-import { Hash } from "crypto";
+import { UserOptionInterface, UserOptionType, ParsedCommand, TableManagerInterface } from "../../lib";
+import { isSimpleMatch, extractZipFolderName } from '../../util';
+import { FileManagerInterface } from 'lib/fileManager';
+import { IDateManager } from 'lib/dateManager/IDateManager';
+import { config } from 'chai';
+import { match } from 'assert';
+
 
 const os = require('os');
 const path = require('path');
@@ -22,6 +31,12 @@ export interface MysqlSourceOptions {
     zipFolder?: string;
 }
 
+interface DatabaseToDump {
+    name: string;
+    zipFolder: string;
+}
+
+@autoInjectable()
 export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
     name: string = 'mysql';
     description: string = 'Backup MySQL Database dumps';
@@ -30,9 +45,13 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
     private optionsx;
     private log: Logger;
 
-    constructor() {
+    constructor(
+        @inject("TableManagerInterface") private tableManager: TableManagerInterface,
+        @inject("FileManagerInterface") private fileManager: FileManagerInterface,
+        @inject("IDateManager") private dateManager: IDateManager,
+        ) {
         super();
-        this.log = logger.child('MySQL Collector');
+        this.log = logger.child('MySqlSource');
     }
 
     /**
@@ -46,10 +65,12 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
         if (command.parameters?.length > 0) {
             if (command.parameters[0] === 'mysql') {
                 if( command.parameters.length > 1) {
+                    this.log.debug(`Parsing command parameters`, JSON.stringify(command.parameters.slice(1)));
                     const p = this.parseHostParameter(command.parameters[1]);
-                    console.log(command);
+
                     if (p.host) {
                         const hasHost = command.options.find(o => o.key === 'host');
+                        this.log.debug(`Adding host value`, p.host);
                         if (!hasHost) {
                             command.options.push({key: 'host', values: [p.host] });
                         } else {
@@ -58,6 +79,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                     }
 
                     if (p.port) {
+                        this.log.debug(`Adding port value`, p.port);
                         const hasPort = command.options.find(o => o.key === 'port');
                         if (!hasPort) {
                             command.options.push({key: 'port', values: [p.port] });
@@ -67,6 +89,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                     }
 
                     if (p.username) {
+                        this.log.debug(`Adding username value`, p.username);
                         const hasPort = command.options.find(o => o.key === 'username');
                         if (!hasPort) {
                             command.options.push({key: 'username', values: [p.username] });
@@ -76,6 +99,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                     }
 
                     if (p.password) {
+                        this.log.debug(`Adding password value`, '****');
                         const hasPort = command.options.find(o => o.key === 'password');
                         if (!hasPort) {
                             command.options.push({key: 'password', values: [p.password] });
@@ -86,6 +110,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                 }
                 if (command.parameters.length > 2) {
                     const hasPort = command.options.find(o => o.key === 'include');
+                    this.log.debug(`Adding include value(s)`, command.parameters.slice(2));
                     if (!hasPort) {
                         command.options.push({key: 'include', values: command.parameters.slice(2) });
                     } else {
@@ -123,11 +148,56 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
         return { port, host, username, password };
     }
 
-    async collect(config: MysqlSourceOptions, args: CollectorArguments): Promise<any> {
+    private config: MysqlSourceOptions;
 
-        console.log("Gather sql databases using", config);
 
-        return Promise.resolve();
+    private filterDatabases(databaseList: string[]): DatabaseToDump[] {
+        const result: DatabaseToDump[] = [];
+        for (let i=0; i < databaseList.length; i++) {
+            const db = this.testShouldDumpDatabase(databaseList[i]);
+            if (db) {
+                result.push(db);
+            }
+        }
+        return result;
+
+        //return databaseList.filter(dbName => this.testShouldDumpDatabase(dbName));
+    }
+
+    async collect(config: MysqlSourceOptions, args: CollectorArguments): Promise<SourceResultInterface> {
+        const result: SourceResultInterface = { };
+        this.config = config;
+         return new Promise(async (resolve, reject) => {
+             
+            let databaseNameList: string[];
+            result.readmeLines = [];
+
+            try {
+
+                this.log.debug('Listing databases');
+                databaseNameList = await this.mysql('SHOW DATABASES') as string[];
+                let databaseList = this.filterDatabases(databaseNameList);
+                this.log.debug(`Databases to dump: (${databaseList.length}) ${JSON.stringify(databaseList)}`);
+
+                if (databaseList.length > 0) {
+                    for (let i=0; i < databaseList.length; i++) {
+                        const dump = await this.dumpDatabase(databaseList[i].name);
+                        const dbFilename = `${databaseList[i].name}_${this.dateManager.formatUtcNow("yyyyMMddHHmmss")}.sql`;
+                        result.readmeLines.push(`${databaseList[i].name} -> ${dbFilename}`);
+                        args.archive.addString(dbFilename, dump, databaseList[i].zipFolder);
+                        this.log.info(`Database "${this.tableManager.fgGreen(databaseList[i].name)}" (${this.fileManager.bytesToSize(dump.length)}) was added to archive folder "${databaseList[i].zipFolder || '/'}"`);
+                    }
+                }
+
+                resolve(result);
+
+            } catch(e) {
+                reject(e);
+            }
+
+        });
+
+        return Promise.resolve(result);
 
 
         // this.log.debug('Entering MySQL Collector');
@@ -238,13 +308,11 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
 
 
     private async mysql(sql: string) {
-        this.log.trace(`Executing MySQL SQL: ${sql}`)
+        this.log.trace(`Executing MySQL SQL: ${this.tableManager.fgCyan(sql)}`)
         return new Promise((resolve, reject) => {
             const { command, args } = this.cmd('mysql', '-e', sql, '-N')
             this.execute(command, args).then(result => {
-                this.log.trace(`SQL Command returned: ${result}`)
                 resolve(this.linesplit(result).filter(r => r));
-
             }).catch(err => {
                 this.log.trace(`Error executing SQL command ${sql}`)
                 reject(err);
@@ -273,12 +341,12 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
         let command = "";
         let args = [];
         
-        if (this.options['username']) {
+        if (this.config.username) {
             args.push(`-u`);
-            args.push(this.options['username']);
+            args.push(this.config.username);
         }
-        if (this.options['password']) {
-            const passwordParameter = `-p` +  this.options['password'].replace(`\\!`, `!`);
+        if (this.config.password) {
+            const passwordParameter = `-p` +  this.config.password.replace(`\\!`, `!`);
             this.sensitiveValues[passwordParameter] = '-p***';
             args.push(passwordParameter);
         }
@@ -286,13 +354,24 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
         args = args.concat(params);
 
         if (os.type() === 'Windows_NT') {
-            if (typeof this.options['mysql-path'] === 'undefined') {
-                throw new ParameterException('mysql-path', null, `On Windows you must specify -s.mysql-path`, this.name, true);
+            let mysqlPath = this.config.mysqlPath;
+            if (!this.config.mysqlPath) {
+                const envPath =  process.env.path?.split(';');
+                envPath.filter(path => path.includes('MySQL') && path.includes('bin')).forEach(path => {
+                    if (!mysqlPath) {
+                    const tmpPath = this.fileManager.join(path, `${name}.exe`);
+                    if (this.fileManager.exists(tmpPath)) {
+                      mysqlPath = path;
+                    }
+                   }
+                });
             }
-            if (!fs.existsSync(this.options['mysql-path'])) { 
-                throw new CollectorError(this.name, `The specified mysql-path does not exist: ${this.options['mysql-path']}`);
+
+            if (!mysqlPath) {
+                throw new ParameterException('mysql-path', null, `Could not find "${name}.exe" - on Windows you must specify -s.mysql-path or add Mysql bin folder to PATH Environment variable`, this.name, true);
             }
-            command = path.join((this.options['mysql-path'] ? this.options['mysql-path'] : ''), name) + ".exe";
+
+            command = this.fileManager.join(mysqlPath, name) + ".exe";
         } else {
             command = name;
         }
@@ -302,39 +381,60 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
 
 
 
-    testShouldDumpDatabase(dbName: string): boolean {
+
+    testShouldDumpDatabase(dbName: string): DatabaseToDump {
         let isIncluded = true;
-        const include: string[] = this.options['include'] || null;
-        const exclude: string[] = this.options['exclude'] || null;
+        let matchingPattern: string;
+        const include: string[] = this.config.include || [];
+        const exclude: string[] = this.config.exclude || [];
 
-        if (include) {
+        if (include?.length > 0) {
             isIncluded = false;
-            if (include.find(inc => inc === dbName)) {
+            const exactMatch = include.find(inc => extractZipFolderName(inc, null).value === dbName);
+            if (exactMatch) {
                 isIncluded = true;
+                this.log.debug(`Included: ${dbName} (match for pattern ${exactMatch})`);
+                matchingPattern = exactMatch;
             } else {
-                include.forEach(f => {
-                    if (f.endsWith('*')) {
-                        if (dbName.startsWith(f.substr(0, f.length - 1))) {
-                            this.log.debug(`Include match for "${f}"`, dbName);
-                            isIncluded = true;
-                        }
-                    } else if (f.startsWith('*')) {
-                        if (dbName.endsWith(f.substr(1))) {
-                            this.log.debug(`Include match for "${f}"`, dbName);
-                            isIncluded = true;
-                        }
-                    }
-                })
+                const match = include.find( includePattern => isSimpleMatch(dbName, extractZipFolderName(includePattern, null).value));
+                isIncluded = !!match;
+                if (isIncluded) {
+                    this.log.debug(`Included: ${dbName} (match for pattern ${match})`);
+                    matchingPattern = match;
+                } else {
+                    this.log.debug(`Not included: ${dbName}`);
+                }
             }
         }
 
-        if ( exclude ) {
-            if (exclude.find(inc => inc === dbName)) {
+        if (exclude?.length > 0) {
+            const match = exclude.find( excludePattern => isSimpleMatch(dbName, excludePattern));
+            if (match) {
                 isIncluded = false;
+                this.log.debug(`Excluded: ${dbName} (match for pattern ${match})`);
             }
         }
 
-        return isIncluded;
+        if (isIncluded) {
+            let info = extractZipFolderName(matchingPattern, null);
+            let zipFolder = info.zipTargetFolder || this.config.zipFolder;
+    
+            if (info.zipTargetFolder && this.config.zipFolder) {
+                if (info.zipTargetFolder.startsWith('/') || info.zipTargetFolder.startsWith('\\')) {
+                    zipFolder = info.zipTargetFolder;
+                } else {
+                    zipFolder = this.config.zipFolder;
+                    if (!zipFolder.endsWith('/') && !zipFolder.endsWith('\/') ) {
+                        zipFolder += '/';
+                    }
+                    zipFolder += info.zipTargetFolder;
+                }
+            }
+
+            return { name: dbName, zipFolder: zipFolder  }
+        }
+
+        return null;
 
     }
 
@@ -374,6 +474,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                 key: 'host',
                 type: UserOptionType.String,
                 isRequired: true,
+                defaultValue: 'localhost',
                 description: 'The hostname of the MySql server',
                 prompt: 'MySQL Host name'
             },
@@ -388,8 +489,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
             {
                 key: 'username',
                 type: UserOptionType.String,
-                isRequired: false,
-                defaultValue: null,
+                defaultValue: 'root',
                 description: 'MySQL user name',
                 prompt: 'MySQL User'
             },
@@ -414,6 +514,7 @@ export class MySqlCollector extends CollectorBase<MysqlSourceOptions> {
                 type: UserOptionType.StringArray,
                 multi: true,
                 defaultValue: null,
+                allowZipTargetFolder: true,
                 description: 'Databases to include (Use * as wildcard)',
                 prompt: 'Include databases'
             },

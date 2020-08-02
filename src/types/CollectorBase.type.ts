@@ -1,3 +1,4 @@
+import { SourceResultInterface } from './../lib/sourceManager/SourceResultInterface';
 import { CollectorArguments } from './CollectorArguments.interface';
 import { UserOptionInterface, ParsedCommand } from '../lib';
 
@@ -9,7 +10,7 @@ export abstract class CollectorBase<T>  {
 
   public abstract options?: UserOptionInterface[];
 
-  abstract async collect(config: T, args: CollectorArguments); 
+  abstract async collect(config: T, args: CollectorArguments): Promise<SourceResultInterface>; 
 
   abstract explain(config: T, args: CollectorArguments);
 

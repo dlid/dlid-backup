@@ -10,6 +10,7 @@ describe('Glob Tests', async () => {
         expect(paths).to.contain('package-lock.json');
         expect(paths).to.contain('package.json');
         expect(paths).to.contain('tsconfig.json');
+
     });
     
 });

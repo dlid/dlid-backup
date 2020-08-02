@@ -1,7 +1,7 @@
 
 /**
  * Simple test of string match
- * Where pattern can start or end with *
+ * Where pattern can start or end with * or %
  *
  * @export
  * @param {string} val
@@ -11,16 +11,19 @@
 
 export function isSimpleMatch(val: string, pattern: string): boolean {
     if (pattern) {
-        if (pattern.startsWith('*')) {
-            if (val.endsWith(pattern.substr(1))) {
-                return true;
-            }
-        } else if (pattern.endsWith('*')) {
-            if (val.startsWith(pattern.substr(0, pattern.length -1))) {
-                return true;
-            }
+        pattern = pattern.replace(/%/g, '*')
+        const startsWith = pattern.startsWith('*');
+        const endsWith = pattern.endsWith('*');
+        pattern = pattern.replace(/^\*+|\*+$/g, '');
+        if (startsWith && endsWith) {
+            return val.includes(pattern);
+        } else if (startsWith) {
+            return val.endsWith(pattern);
+        } else if (endsWith) {
+            return val.startsWith(pattern);
+        } else {
+            return val == pattern;
         }
-        return false;
     }
     return true;
 } 

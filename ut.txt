@@ -1,0 +1,19 @@
+# Parameter file exported by dlid-backup
+# Include at any time by passing file:///<path> as parameter
+# Empty lines or lines starting with # are ignored
+
+--source
+mysql
+
+--source.host
+localhost
+
+--source.username
+root
+
+--source.password
+05t05tbara05t
+
+--source.include
+david
+1

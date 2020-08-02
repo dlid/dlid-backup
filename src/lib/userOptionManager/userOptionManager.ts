@@ -2,11 +2,12 @@ import { UserOptionManagerInterface, UserOptionType } from ".";
 import { UserOptionInterface } from "./UserOptionInterface";
 import { ParsedCommand } from "../commandManager";
 import { ParameterException, DlidBackupError } from "../../exceptions";
-import { ok } from "assert";
 import { FileManagerInterface } from "../fileManager";
 import { inject, autoInjectable } from "tsyringe";
 import { SourceManagerInterface } from "../sourceManager";
 import { TargetManagerInterface } from "..";
+import { Logger, logger } from './../../util/logger';
+
 
 interface UserOptionParseContext {
     source: string;
@@ -17,34 +18,47 @@ interface UserOptionParseContext {
 @autoInjectable()
 export class UserOptionManager implements UserOptionManagerInterface {
 
+    private log: Logger;
+ 
     constructor(
         @inject("FileManagerInterface") private fileManager: FileManagerInterface,
         @inject("SourceManagerInterface") private sourceManager: SourceManagerInterface,
         @inject("TargetManagerInterface") private targetManager: TargetManagerInterface
-    ) {}
+    ) {
+        this.log = logger.child('UserOptionManager');
+    }
 
     public resolveFromParsedCommand(parameterSource: string, options: UserOptionInterface[], cmd: ParsedCommand): { [key: string]: any } {
         let result: any = {};
 
+        this.log.debug(`Resolve command "${cmd.commandLongName}"`);
+
         if (cmd.commandLongName === 'source' && cmd.parameters?.length > 0) {
+            this.log.debug(`Source detected (${cmd.parameters[0]})`);
             // IF any parameters, give the source a chance to parse the parameters and modify the command options
             const src = this.sourceManager.getByName(parameterSource);
             src?.prepareParsedCommand(cmd);
+            cmd.parameters?.splice(1, cmd.parameters.length - 1); // Remove any extra parameters that the target got a chance to handle
         } else if (cmd.commandLongName === 'target' && cmd.parameters?.length > 0) {
             // IF any parameters, give the source a chance to parse the parameters and modify the command options
+            this.log.debug(`Target detected (${cmd.parameters[0]})`);
             const src = this.targetManager.getByName(parameterSource);
             src?.prepareParsedCommand(cmd);
+            cmd.parameters?.splice(1, cmd.parameters.length - 1); // Remove any extra parameters that the target got a chance to handle
         }
 
         options.forEach(o => {
             const definedOption = cmd.options?.find(opt => opt.key === o.key);
             if (definedOption) {
+                
                 result[this.camelCaseOptionName(o.key)] = this.parse({
                     command: cmd, 
                     source: parameterSource, 
                     option: o
                 });
+                this.log.debug(` ${o.key}:  ${ o.isSensitive ? '***' : JSON.stringify(result[this.camelCaseOptionName(o.key)])}`);
             } else if (o.defaultValue) {
+                this.log.debug(` ${o.key}: (Default) ${JSON.stringify(o.defaultValue)}`);
                 result[this.camelCaseOptionName(o.key)] = o.defaultValue;
             } else if (o.isRequired) {
                 throw new ParameterException(`--${cmd.commandLongName}.${o.key} (${parameterSource})`, null, 'Required - ' + o.description);
@@ -91,6 +105,7 @@ export class UserOptionManager implements UserOptionManagerInterface {
 
     private parse(ctx: UserOptionParseContext) {
         
+
         let value: any;
         const userProvidedOpion = ctx.command.options.find(opt => opt.key === ctx.option.key);
 
@@ -157,12 +172,15 @@ export class UserOptionManager implements UserOptionManagerInterface {
         }
 
         let zipFolderInfo = this.extractZipFolderName(value[0], '');
+        this.log.warn('m', value, JSON.stringify(zipFolderInfo));
         let valuesToTest = [zipFolderInfo.value];
         let existingFolderPath: string = null;
         
         valuesToTest.forEach(currentPath => {
             if (this.fileManager.exists(currentPath)) {
                 existingFolderPath = this.fileManager.resolvePath(currentPath);
+            } else {
+                this.log.debug(`Does not exist: ${currentPath}`);
             }
         })
 
@@ -170,7 +188,7 @@ export class UserOptionManager implements UserOptionManagerInterface {
             throw new ParameterException(`--${ctx.command.commandLongName}.${ctx.option.key} (${ctx.source})`, null, `${this.typeToString(ctx.option.type)} - Folder not found - ${zipFolderInfo.value}` + (zipFolderInfo.zipTargetFolder ? ` (Zip target folder "${zipFolderInfo.zipTargetFolder}" was removed from test)` : ''));
         }
 
-        return zipFolderInfo.zipTargetFolder ? `${zipFolderInfo.zipTargetFolder}@(${existingFolderPath})` : existingFolderPath;
+        return zipFolderInfo.zipTargetFolder ? `@${zipFolderInfo.zipTargetFolder}(${existingFolderPath})` : existingFolderPath;
     }
 
     private parseAsFolderPathArray(value: string[], ctx: UserOptionParseContext) {

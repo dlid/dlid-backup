@@ -8,9 +8,9 @@ import { addMinutes } from "date-fns";
  * @param {string} formatString
  * @returns {string}
  */
-export function formatMacroDate(date: Date, formatString: string): string {
-    const utcDate = addMinutes(date, date.getTimezoneOffset());
-    return format(utcDate, formatString);
-}
+// export function formatMacroDate(date: Date, formatString: string): string {
+//     const utcDate = addMinutes(date, date.getTimezoneOffset());
+//     return format(utcDate, formatString);
+// }
 
      

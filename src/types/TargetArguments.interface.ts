@@ -6,13 +6,4 @@ export interface TargetArguments {
      */
     archiveFilename: string;
 
-    /**
-     * The Target option values
-     */
-    options: any;
-
-    /**
-     * The entire current configuration
-     */
-    config: any; // DlidBackupConfiguration;
-} 
+}

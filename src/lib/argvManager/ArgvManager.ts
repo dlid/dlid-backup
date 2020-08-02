@@ -1,10 +1,11 @@
-import { CommandManagerInterface } from "../../interfaces/managers";
+import { Logger, logger } from './../../util/logger';
 import { FileManagerInterface } from "../fileManager";
 import { ParameterException } from "../../exceptions";
 import { autoInjectable, inject } from "tsyringe";
 import { ArgvManagerInterface } from './ArgvManagerInterface';
 import { ArgvParameterArray } from "./ArgvParameterArray";
-import { CommandInterface } from "../commandManager";
+import { CommandManagerInterface } from "../commandManager";
+import { TableManagerInterface } from 'lib';
 
 /**
  * Responsible for translating the various ways to input parameters into
@@ -13,16 +14,23 @@ import { CommandInterface } from "../commandManager";
 @autoInjectable()
  export class ArgvManager implements ArgvManagerInterface {
 
+    private log: Logger;
+
     public constructor(
         @inject("CommandManagerInterface") private commandManager: CommandManagerInterface,
-        @inject("FileManagerInterface") private fileManager: FileManagerInterface 
-    ) {}
+        @inject("FileManagerInterface") private fileManager: FileManagerInterface,
+        @inject("TableManagerInterface") private tableManager: TableManagerInterface 
+    ) {
+        this.log = logger.child('ArvgManager');
+    }
 
     /**
      * 
      * @param parameters List of parameters
      */
     public parseArguments(parameters: string[]): ArgvParameterArray {
+        this.log.debug(`Parsing arguments`, parameters.map(a => this.tableManager.fgGreen(a)).join(','));
+
         let args = parameters.slice(0); 
         const action = args.shift();
 
@@ -30,11 +38,13 @@ import { CommandInterface } from "../commandManager";
 
         let foundFileArg = -1;
         for (var i=0; i < args.length; i++) {
-            if (args[i].startsWith("@")) {
-                const filename = args[i].substring(1);
+            if (args[i].startsWith("file:///")) {
+                this.log.debug(`Found file argument at position ${i}`);
+                const filename = args[i].substring(8);
                 try {
                     const fileContent = this.fileManager.readTextSync(filename);
                     const args2 = fileContent.toString().split(/[\r\n]/);
+                    this.log.debug(`Adding ${args.length} lines from file`);
                     args2.forEach(line => {
                         if (line) {
                             var t = line.split(/\t+/);
@@ -43,7 +53,7 @@ import { CommandInterface } from "../commandManager";
                     });
                     foundFileArg = i;
                 } catch (e) {
-                    throw new ParameterException('@parameterfile', null, `Could not find file ${args[i]}`);
+                    throw new ParameterException('file:/// parameter', null, `Could not find file ${filename}`);
                 }
             } else {
                 break;
@@ -71,6 +81,8 @@ import { CommandInterface } from "../commandManager";
      */
     private normalizeArguments(args: string[]) {
         
+        this.log.debug(`Normalizing arguments`, args.map(a => this.tableManager.fgYellow(a)).join(','));
+
         const shortNames = this.commandManager.getAll().filter(c => c.shortName).map(c => `${c.shortName}`  ).join('|');
         const longNames = this.commandManager.getAll().filter(c => c.longName).map(c => c.longName).join('|');
 
@@ -123,6 +135,7 @@ import { CommandInterface } from "../commandManager";
 
             }
         });
+        this.log.debug(`Normalized arguments`, newargs.map(a => this.tableManager.fgGreen(a)).join(','));
         return newargs;
     }
 

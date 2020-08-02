@@ -1,3 +1,4 @@
+import { TableManager } from './../lib/tableManager/TableManager';
 import { info } from "console";
 
 export enum LogLevel {
@@ -7,13 +8,21 @@ export enum LogLevel {
     Info = 3,
     Warning = 4,
     Error = 5,
+
+    None = 10
 }
 
 export class Logger {
 
     private static logLevel: LogLevel = LogLevel.Trace;
+    private fullPath: string[] = [];
+    private tableManager: TableManager;
 
-    constructor(private root: Logger = null, private name: string = null) {}
+    constructor(private root: Logger = null, private name: string = null, parents: string[] = []) {
+        this.fullPath = this.name ? (parents ? parents : []).concat([this.name]) : [];
+        // TODO: Fix this as an injectable.. Logger should be...
+        this.tableManager = new TableManager();
+    }
 
     private trySetLogLevelFromParameters(args: string[]): string[] {
         const levels = ['verbose', 'trace', 'debug', 'info', 'warn', 'error']; // Must match the enum order
@@ -46,6 +55,7 @@ export class Logger {
             case 'trace': return LogLevel.Trace;
             case 'warn': return LogLevel.Warning;
             case 'error': return LogLevel.Error;
+            case 'none': return LogLevel.None;
         }
         return LogLevel.Verbose;
     }
@@ -70,9 +80,15 @@ export class Logger {
 
 
         levelString = levelString.padEnd(5, ' ');
-        let name = '';
-        if (this.name) {
-            name = `[\x1b[1m\x1b[36m${this.name}\x1b[0m] `;
+        let name = this.fullPath[0] || '';
+        if (name) {
+            let cc = '';
+            if (this.fullPath.length > 1) {
+                cc = `:${this.tableManager.fgYellow(this.fullPath[1])}`;
+            }
+            name = `[\x1b[1m\x1b[36m${name}\x1b[0m]${cc}`;
+            
+            name += ' ';
         }
 
         const timestamp = new Date().toISOString();
@@ -91,6 +107,7 @@ export class Logger {
     }
 
     setLogLevel(level: LogLevel, parametersToParse: string[] = null): string[] {
+        const log = this.child('Logger');
         if (parametersToParse) {
             const newParameters = this.trySetLogLevelFromParameters(parametersToParse);
             if (newParameters) {
@@ -98,7 +115,7 @@ export class Logger {
             }
         }
         Logger.logLevel = level;
-        console.log(`LogLevel set to ${this.logLevelToString(level)}`);
+        log.debug(`LogLevel set to ${this.logLevelToString(level)}`);
         return parametersToParse;
     }
 
@@ -107,7 +124,7 @@ export class Logger {
     }
 
     child(name: string) {
-        return new Logger(this.root || this, name);
+        return new Logger(this.root || this, name, this.fullPath);
     }
 
     error(...param: any[]) {
